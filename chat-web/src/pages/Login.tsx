@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { Campo } from '../components/Campo'
 
 export function Login() {
   const { entrar } = useAuth()
@@ -34,31 +35,23 @@ export function Login() {
         <h1 className="text-2xl font-semibold text-unite-900">Unite</h1>
         <p className="mt-1 mb-6 text-sm text-slate-500">Entre com sua conta corporativa.</p>
 
-        <label className="mb-4 block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">E-mail</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          />
-        </label>
+        <Campo
+          rotulo="E-mail"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-        <label className="mb-5 block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">Senha</span>
-          <input
-            type="password"
-            required
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          />
-        </label>
+        <Campo
+          rotulo="Senha"
+          type="password"
+          required
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+        />
 
-        {erro && (
-          <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
-        )}
+        {erro && <p className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
         <button
           type="submit"

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ChatApi.Models;
 
 /// <summary>Niveis da arvore de gerenciamento do Unite.</summary>
@@ -11,7 +13,10 @@ public enum NivelHierarquico
 public class Cargo
 {
     public Guid Id { get; set; }
+
+    [MaxLength(80)]
     public string Nome { get; set; } = string.Empty;
+
     public NivelHierarquico Nivel { get; set; }
 
     public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();

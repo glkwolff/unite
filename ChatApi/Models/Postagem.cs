@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ChatApi.Models;
 
 public class Postagem
@@ -7,7 +9,9 @@ public class Postagem
     public Guid AutorId { get; set; }
     public Usuario Autor { get; set; } = null!;
 
+    [MaxLength(160)]
     public string Titulo { get; set; } = string.Empty;
+
     public string Conteudo { get; set; } = string.Empty;
 
     /// <summary>Aviso institucional: exige permissao para publicar.</summary>

@@ -63,7 +63,7 @@ async function requisicao<T>(caminho: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  get: <T,>(caminho: string) => requisicao<T>(caminho),
-  post: <T,>(caminho: string, corpo: unknown) =>
+  get: <T>(caminho: string) => requisicao<T>(caminho),
+  post: <T>(caminho: string, corpo: unknown) =>
     requisicao<T>(caminho, { method: 'POST', body: JSON.stringify(corpo) }),
 }

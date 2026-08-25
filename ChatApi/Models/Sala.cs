@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ChatApi.Models;
 
 public enum TipoSala
@@ -9,7 +11,10 @@ public enum TipoSala
 public class Sala
 {
     public Guid Id { get; set; }
+
+    [MaxLength(120)]
     public string Nome { get; set; } = string.Empty;
+
     public TipoSala Tipo { get; set; }
 
     /// <summary>Preenchido quando a sala representa o canal de uma equipe.</summary>

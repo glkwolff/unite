@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useEffect, useState, type ReactNode } from 'react'
 import { api, token, type AuthResposta, type Usuario } from '../api/client'
 
 interface AuthContexto {
@@ -30,34 +30,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setCarregando(false))
   }, [])
 
-  const aplicar = useCallback((resposta: AuthResposta) => {
+  function aplicar(resposta: AuthResposta) {
     token.gravar(resposta.token)
     setUsuario(resposta.usuario)
-  }, [])
+  }
 
-  const entrar = useCallback(
-    async (email: string, senha: string) => {
-      aplicar(await api.post<AuthResposta>('/api/auth/login', { email, senha }))
-    },
-    [aplicar],
-  )
+  async function entrar(email: string, senha: string) {
+    aplicar(await api.post<AuthResposta>('/api/auth/login', { email, senha }))
+  }
 
-  const cadastrar = useCallback(
-    async (nomeCompleto: string, email: string, senha: string) => {
-      aplicar(await api.post<AuthResposta>('/api/auth/registrar', { nomeCompleto, email, senha }))
-    },
-    [aplicar],
-  )
+  async function cadastrar(nomeCompleto: string, email: string, senha: string) {
+    aplicar(await api.post<AuthResposta>('/api/auth/registrar', { nomeCompleto, email, senha }))
+  }
 
-  const sair = useCallback(() => {
+  function sair() {
     token.limpar()
     setUsuario(null)
-  }, [])
+  }
 
-  const valor = useMemo(
-    () => ({ usuario, carregando, entrar, cadastrar, sair }),
-    [usuario, carregando, entrar, cadastrar, sair],
+  return (
+    <ContextoAuth.Provider value={{ usuario, carregando, entrar, cadastrar, sair }}>
+      {children}
+    </ContextoAuth.Provider>
   )
-
-  return <ContextoAuth.Provider value={valor}>{children}</ContextoAuth.Provider>
 }
