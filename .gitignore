@@ -1,0 +1,120 @@
+# ==============================================================================
+# .gitignore para o projeto Unite
+# Tecnologias: ASP.NET Core, React (Vite), SQLite, Node.js, xUnit
+# ==============================================================================
+
+# ==========================================
+# 1. Arquivos do SO e Editores
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.bak
+*.tmp
+
+# ==========================================
+# 2. Node.js e React (Vite - Frontend)
+# ==========================================
+# Dependências
+node_modules/
+.pnp
+.pnp.js
+
+# Build / Output do Vite
+dist/
+dist-ssr/
+build/
+
+# Logs do NPM/Yarn/pnpm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Variáveis de Ambiente locais
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ==========================================
+# 3. .NET / C# (Backend - ASP.NET Core)
+# ==========================================
+# Diretórios de build
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+TestResults/
+[Ll]ogs/
+[Ll]og/
+
+# Arquivos de build do VS
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+mono_crash.*
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Cobertura de Testes
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+
+# ==========================================
+# 4. Banco de Dados (SQLite)
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# ==========================================
+# 5. Outros
+# ==========================================
+# Arquivos de dump ou crash
+*.stackdump
+crash_report*
+
+# Caso queira ignorar os documentos de planejamento da faculdade para não subir no repo, 
+# descomente as linhas abaixo:
+# *.docx
+# *.pdf
+# *.csv
+# backlog-colar.txt
+# unite-escopo-cronograma.html

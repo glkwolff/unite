@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-unite-50: #eef2f8;
+  --color-unite-100: #d7e0ee;
+  --color-unite-400: #4a6a9c;
+  --color-unite-600: #24405f;
+  --color-unite-700: #1b3a6b;
+  --color-unite-900: #12243f;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-unite-50 text-slate-800 antialiased;
+}

@@ -1,0 +1,69 @@
+import type { ReactNode } from 'react'
+import { useAuth } from '../auth/useAuth'
+
+const NAVEGACAO = [
+  { rotulo: 'Feed', disponivel: false },
+  { rotulo: 'Chat', disponivel: false },
+  { rotulo: 'Equipes', disponivel: false },
+  { rotulo: 'Perfil', disponivel: false },
+]
+
+function iniciais(nome: string) {
+  return nome
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase())
+    .join('')
+}
+
+export function Layout({ children }: { children: ReactNode }) {
+  const { usuario, sair } = useAuth()
+
+  return (
+    <div className="flex h-full">
+      <aside className="hidden w-56 shrink-0 flex-col bg-unite-900 text-unite-100 md:flex">
+        <div className="px-6 py-5 text-xl font-semibold tracking-tight text-white">Unite</div>
+
+        <nav className="flex-1 px-3">
+          {NAVEGACAO.map((item) => (
+            <button
+              key={item.rotulo}
+              type="button"
+              disabled={!item.disponivel}
+              className="mb-1 w-full rounded-md px-3 py-2 text-left text-sm transition enabled:hover:bg-unite-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {item.rotulo}
+            </button>
+          ))}
+        </nav>
+
+        <p className="px-6 py-4 text-xs text-unite-400">Módulos liberados a partir de 10/09</p>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center justify-between border-b border-unite-100 bg-white px-6 py-3">
+          <span className="text-sm text-slate-500">
+            {usuario?.equipe ?? 'Sem equipe'} · {usuario?.cargo ?? 'Sem cargo'}
+          </span>
+
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 items-center justify-center rounded-full bg-unite-700 text-sm font-medium text-white">
+              {iniciais(usuario?.nomeCompleto ?? '?')}
+            </span>
+            <span className="hidden text-sm font-medium sm:inline">{usuario?.nomeCompleto}</span>
+            <button
+              type="button"
+              onClick={sair}
+              className="rounded-md border border-unite-100 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-unite-50"
+            >
+              Sair
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-auto p-6">{children}</main>
+      </div>
+    </div>
+  )
+}
