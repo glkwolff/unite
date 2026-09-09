@@ -3,7 +3,7 @@ import { useAuth } from '../auth/useAuth'
 const ETAPAS = [
   { data: '27/08', titulo: 'Setup do projeto', pronto: true },
   { data: '03/09', titulo: 'Autenticacao base', pronto: true },
-  { data: '10/09', titulo: 'Perfil e estrutura organizacional', pronto: false },
+  { data: '10/09', titulo: 'Perfil e estrutura organizacional', pronto: true },
   { data: '17/09', titulo: 'Permissoes e hierarquia', pronto: false },
   { data: '01/10', titulo: 'Chat privado', pronto: false },
   { data: '08/10', titulo: 'Chat em grupo e historico', pronto: false },

@@ -96,7 +96,8 @@ builder.Services
     // Sem isto o NivelHierarquico chega no front como 1/2/3 em vez de "Gerente".
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -111,10 +112,16 @@ using (var escopo = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
+// Fotos de perfil ficam em wwwroot/uploads e sao servidas como arquivo
+// estatico direto — sem controller/stream proprio para isso.
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads", "perfis"));
+
 app.UseCors(PoliticaCors);
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

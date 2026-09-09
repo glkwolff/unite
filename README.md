@@ -14,7 +14,7 @@ Trabalho da disciplina de Planejamento de Projeto de Sistema Visual — defesa e
 
 | Camada | Tecnologia |
 | --- | --- |
-| Backend | .NET 10 · ASP.NET Core Web API · SignalR *(a partir de 01/10)* |
+| Backend | .NET 8 (LTS) · ASP.NET Core Web API · SignalR *(a partir de 01/10)* |
 | Dados | SQLite em modo WAL · Entity Framework Core 10 |
 | Autenticação | ASP.NET Core Identity · JWT · Google OAuth *(a partir de 29/10)* |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 |
@@ -27,7 +27,7 @@ atrás do EF Core, então trocar o SQLite por PostgreSQL é mudar o provider.
 
 ## Pré-requisitos
 
-- [.NET SDK 10](https://dotnet.microsoft.com/download)
+- [.NET SDK 8](https://dotnet.microsoft.com/download/dotnet/8.0) (LTS)
 - [Node.js 20+](https://nodejs.org)
 - Ferramenta de migrations:
   ```bash
@@ -76,19 +76,25 @@ A interface sobe em **http://localhost:5173**. Se a API estiver em outra porta, 
 
 ```
 ChatApi/
-├── Controllers/AuthController.cs   cadastro, login e /eu
-├── Data/AppDbContext.cs            mapeamento das entidades
-├── Data/AppDbContextFactory.cs     usado só pelo dotnet ef
-├── Models/                         Usuario, Cargo, Equipe, Sala,
-│                                   SalaUsuario, Mensagem, Postagem, Ciencia
-├── Services/TokenService.cs        emissão do JWT
+├── Controllers/AuthController.cs      cadastro, login e /eu
+├── Controllers/PerfilController.cs    ver/editar perfil, upload de foto
+├── Controllers/CargosController.cs    CRUD de cargos
+├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
+├── Controllers/UsuariosController.cs  listagem resumida (selects do front)
+├── Data/AppDbContext.cs               mapeamento das entidades
+├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
+├── Models/                            Usuario, Cargo, Equipe, Sala,
+│                                       SalaUsuario, Mensagem, Postagem, Ciencia
+├── Services/TokenService.cs           emissão do JWT
+├── Services/MapeamentoOrganizacao.cs  Usuario -> MembroResumoDto
+├── wwwroot/uploads/perfis/            fotos de perfil (fora do git)
 └── Migrations/
 
 chat-web/src/
-├── api/client.ts                   wrapper de fetch com Bearer
+├── api/client.ts                   wrapper de fetch com Bearer, PUT/DELETE e upload
 ├── auth/                           AuthContext, useAuth, RotaProtegida
 ├── components/Layout.tsx           casca com sidebar e topbar
-└── pages/                          Login, Cadastro, Home
+└── pages/                          Login, Cadastro, Home, Perfil, Equipes
 ```
 
 ---
@@ -113,8 +119,26 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | POST | `/api/auth/registrar` | — | Cria a conta e já devolve o token |
 | POST | `/api/auth/login` | — | Autentica e devolve o token |
 | GET | `/api/auth/eu` | Bearer | Dados do usuário logado |
+| GET | `/api/perfil` | Bearer | Dados do próprio perfil |
+| PUT | `/api/perfil` | Bearer | Atualiza o nome completo |
+| POST | `/api/perfil/foto` | Bearer | Upload da foto (multipart, campo `arquivo`) |
+| DELETE | `/api/perfil/foto` | Bearer | Remove a foto atual |
+| GET | `/api/usuarios` | Bearer | Lista resumida (para montar equipes) |
+| GET/POST | `/api/cargos` | Bearer | Lista/cria cargos |
+| PUT/DELETE | `/api/cargos/{id}` | Bearer | Atualiza/remove um cargo |
+| GET/POST | `/api/equipes` | Bearer | Lista/cria equipes |
+| GET | `/api/equipes/arvore` | Bearer | Organograma completo |
+| PUT/DELETE | `/api/equipes/{id}` | Bearer | Atualiza/remove uma equipe |
+| POST | `/api/equipes/{id}/membros` | Bearer | Adiciona um membro à equipe |
+| DELETE | `/api/equipes/{id}/membros/{usuarioId}` | Bearer | Remove um membro da equipe |
 
-Em desenvolvimento o contrato OpenAPI fica em `/openapi/v1.json`.
+Restrição de rotas administrativas por papel (RF11) fica para a Aula 3 — por ora todo
+usuário autenticado pode montar cargos e equipes.
+
+Fotos de perfil ficam em `ChatApi/wwwroot/uploads/perfis/` (fora do controle de versão) e
+são servidas como arquivo estático em `/uploads/perfis/<arquivo>`.
+
+Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swagger/v1/swagger.json`.
 
 ---
 
@@ -124,7 +148,7 @@ Em desenvolvimento o contrato OpenAPI fica em `/openapi/v1.json`.
 | --- | --- | --- |
 | 27/08 | Setup do projeto | ✅ |
 | 03/09 | Autenticação base | ✅ |
-| 10/09 | Perfil e estrutura organizacional | — |
+| 10/09 | Perfil e estrutura organizacional | ✅ |
 | 17/09 | Permissões e hierarquia | — |
 | 01/10 | Chat privado | — |
 | 08/10 | Chat em grupo e histórico | — |

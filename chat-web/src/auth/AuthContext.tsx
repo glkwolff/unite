@@ -7,6 +7,9 @@ interface AuthContexto {
   entrar: (email: string, senha: string) => Promise<void>
   cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<void>
   sair: () => void
+  /** Atualiza o usuario em memoria (ex.: apos editar perfil ou trocar foto),
+   * sem precisar relogar para o header refletir a mudanca. */
+  atualizarUsuario: (usuario: Usuario) => void
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -49,7 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ContextoAuth.Provider value={{ usuario, carregando, entrar, cadastrar, sair }}>
+    <ContextoAuth.Provider
+      value={{ usuario, carregando, entrar, cadastrar, sair, atualizarUsuario: setUsuario }}
+    >
       {children}
     </ContextoAuth.Provider>
   )
