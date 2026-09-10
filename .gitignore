@@ -12,7 +12,10 @@
 Thumbs.db
 ehthumbs.db
 .vs/
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
 *.suo
 *.user
 *.userosscache
@@ -103,6 +106,9 @@ coverage*.info
 *.sqlite3
 *.db-shm
 *.db-wal
+
+# Fotos de perfil enviadas em runtime (nao versionar upload de usuario)
+ChatApi/wwwroot/uploads/
 
 # ==========================================
 # 5. Outros

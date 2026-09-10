@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend (ChatApi)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-backend",
+      "program": "${workspaceFolder}/ChatApi/bin/Debug/net8.0/ChatApi.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/ChatApi",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "Frontend (chat-web)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/chat-web",
+      "preLaunchTask": "npm-install-frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Unite (backend + frontend)",
+      "configurations": ["Backend (ChatApi)", "Frontend (chat-web)"],
+      "stopAll": true
+    }
+  ]
+}
