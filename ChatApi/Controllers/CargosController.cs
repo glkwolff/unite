@@ -1,18 +1,19 @@
 using ChatApi.Data;
 using ChatApi.Dtos;
 using ChatApi.Models;
+using ChatApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-// Restricao por papel (RF11) fica para a Aula 3 — por ora, qualquer usuario
-// autenticado monta a estrutura organizacional inicial.
+// Qualquer autenticado le a lista de cargos (o organograma depende dela);
+// so o diretor escreve.
 [Authorize]
 [ApiController]
 [Route("api/cargos")]
-public class CargosController(AppDbContext db) : ControllerBase
+public class CargosController(AppDbContext db, Permissoes permissoes) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CargoDto>>> Listar()
@@ -28,6 +29,9 @@ public class CargosController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CargoDto>> Criar(CargoEntradaDto dto)
     {
+        if (!await permissoes.PodeGerenciarCargosAsync())
+            return Forbid();
+
         var cargo = new Cargo { Nome = dto.Nome.Trim(), Nivel = dto.Nivel };
         db.Cargos.Add(cargo);
         await db.SaveChangesAsync();
@@ -38,6 +42,9 @@ public class CargosController(AppDbContext db) : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<CargoDto>> Atualizar(Guid id, CargoEntradaDto dto)
     {
+        if (!await permissoes.PodeGerenciarCargosAsync())
+            return Forbid();
+
         var cargo = await db.Cargos.FindAsync(id);
         if (cargo is null) return NotFound(new { erro = "Cargo nao encontrado." });
 
@@ -52,6 +59,9 @@ public class CargosController(AppDbContext db) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Remover(Guid id)
     {
+        if (!await permissoes.PodeGerenciarCargosAsync())
+            return Forbid();
+
         var cargo = await db.Cargos.FindAsync(id);
         if (cargo is null) return NotFound(new { erro = "Cargo nao encontrado." });
 

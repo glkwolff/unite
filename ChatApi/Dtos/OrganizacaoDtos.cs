@@ -38,6 +38,25 @@ public class AdicionarMembroDto
 /// nunca expoe e-mail/senha alem do estritamente necessario para a UI.</summary>
 public record MembroResumoDto(Guid Id, string NomeCompleto, string? FotoUrl, string? Cargo, NivelHierarquico? Nivel);
 
+/// <summary>Recorte da tela de administracao de pessoas: alem do resumo, traz
+/// os ids de cargo e equipe, que a tela precisa para montar o select e para
+/// saber o que ja esta selecionado. Continua sem expor e-mail.</summary>
+public record PessoaDto(
+    Guid Id,
+    string NomeCompleto,
+    string? FotoUrl,
+    Guid? CargoId,
+    string? Cargo,
+    NivelHierarquico? Nivel,
+    Guid? EquipeId,
+    string? Equipe);
+
+public class AtribuirCargoDto
+{
+    /// <summary>Nulo tira o cargo da pessoa.</summary>
+    public Guid? CargoId { get; set; }
+}
+
 public record EquipeDto(
     Guid Id,
     string Nome,
@@ -47,11 +66,11 @@ public record EquipeDto(
 // ---------------------------------------------------------- arvore (organograma)
 
 /// <summary>
-/// Estrutura pronta para desenhar o organograma no front: gerentes no topo
-/// (sem vinculo formal de equipe — enxergam tudo), depois cada equipe com
-/// seu supervisor e membros, e por fim quem ainda nao foi alocado.
+/// Estrutura pronta para desenhar o organograma no front: diretoria e gerencia
+/// no topo (sem vinculo formal de equipe — enxergam tudo), depois cada equipe
+/// com seu supervisor e membros, e por fim quem ainda nao foi alocado.
 /// </summary>
 public record ArvoreOrganizacionalDto(
-    IEnumerable<MembroResumoDto> Gerentes,
+    IEnumerable<MembroResumoDto> Lideranca,
     IEnumerable<EquipeDto> Equipes,
     IEnumerable<MembroResumoDto> SemEquipe);

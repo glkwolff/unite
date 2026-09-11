@@ -42,6 +42,10 @@ var emissor = builder.Configuration["Jwt:Emissor"] ?? "unite";
 
 builder.Services.AddSingleton<TokenService>();
 
+// Quem pode o que (RF11). Scoped: guarda o usuario logado durante a requisicao.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<Permissoes>();
+
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
@@ -108,6 +112,9 @@ using (var escopo = app.Services.CreateScope())
     db.Database.Migrate();
     // WAL: leitor nao bloqueia escritor. E persistente no arquivo do banco.
     db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+    // Base nova precisa ter os quatro cargos padrao para o primeiro usuario
+    // poder virar diretor no registro.
+    await SeedCargos.GarantirAsync(db);
 }
 
 if (app.Environment.IsDevelopment())
