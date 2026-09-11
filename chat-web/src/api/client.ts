@@ -41,8 +41,15 @@ export interface Equipe {
   membros: MembroResumo[];
 }
 
+export interface Pessoa extends MembroResumo {
+  cargoId: string | null;
+  equipeId: string | null;
+  equipe: string | null;
+}
+
 export interface ArvoreOrganizacional {
-  gerentes: MembroResumo[];
+  /** Diretoria e gerencia: ficam no topo, fora das equipes. */
+  lideranca: MembroResumo[];
   equipes: Equipe[];
   semEquipe: MembroResumo[];
 }

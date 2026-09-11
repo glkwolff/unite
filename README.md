@@ -80,12 +80,14 @@ ChatApi/
 ├── Controllers/PerfilController.cs    ver/editar perfil, upload de foto
 ├── Controllers/CargosController.cs    CRUD de cargos
 ├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
-├── Controllers/UsuariosController.cs  listagem resumida (selects do front)
+├── Controllers/UsuariosController.cs  listagem de pessoas e atribuição de cargo
 ├── Data/AppDbContext.cs               mapeamento das entidades
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
+├── Data/SeedCargos.cs                 cria os 4 cargos padrão numa base nova
 ├── Models/                            Usuario, Cargo, Equipe, Sala,
 │                                       SalaUsuario, Mensagem, Postagem, Ciencia
 ├── Services/TokenService.cs           emissão do JWT
+├── Services/Permissoes.cs             quem pode o quê (RF11)
 ├── Services/MapeamentoOrganizacao.cs  Usuario -> MembroResumoDto
 ├── wwwroot/uploads/perfis/            fotos de perfil (fora do git)
 └── Migrations/
@@ -94,7 +96,8 @@ chat-web/src/
 ├── api/client.ts                   wrapper de fetch com Bearer, PUT/DELETE e upload
 ├── auth/                           AuthContext, useAuth, RotaProtegida
 ├── components/Layout.tsx           casca com sidebar e topbar
-└── pages/                          Login, Cadastro, Home, Perfil, Equipes
+├── lib/permissoes.ts               espelho das regras do backend, só para a UI
+└── pages/                          Login, Cadastro, Home, Perfil, Equipes, Pessoas
 ```
 
 ---
@@ -114,26 +117,54 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 
 ## Endpoints
 
-| Método | Rota | Autenticação | Descrição |
+| Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
 | POST | `/api/auth/registrar` | — | Cria a conta e já devolve o token |
 | POST | `/api/auth/login` | — | Autentica e devolve o token |
-| GET | `/api/auth/eu` | Bearer | Dados do usuário logado |
-| GET | `/api/perfil` | Bearer | Dados do próprio perfil |
-| PUT | `/api/perfil` | Bearer | Atualiza o nome completo |
-| POST | `/api/perfil/foto` | Bearer | Upload da foto (multipart, campo `arquivo`) |
-| DELETE | `/api/perfil/foto` | Bearer | Remove a foto atual |
-| GET | `/api/usuarios` | Bearer | Lista resumida (para montar equipes) |
-| GET/POST | `/api/cargos` | Bearer | Lista/cria cargos |
-| PUT/DELETE | `/api/cargos/{id}` | Bearer | Atualiza/remove um cargo |
-| GET/POST | `/api/equipes` | Bearer | Lista/cria equipes |
-| GET | `/api/equipes/arvore` | Bearer | Organograma completo |
-| PUT/DELETE | `/api/equipes/{id}` | Bearer | Atualiza/remove uma equipe |
-| POST | `/api/equipes/{id}/membros` | Bearer | Adiciona um membro à equipe |
-| DELETE | `/api/equipes/{id}/membros/{usuarioId}` | Bearer | Remove um membro da equipe |
+| GET | `/api/auth/eu` | autenticado | Dados do usuário logado |
+| GET | `/api/perfil` | autenticado | Dados do próprio perfil |
+| PUT | `/api/perfil` | autenticado | Atualiza o nome completo |
+| POST | `/api/perfil/foto` | autenticado | Upload da foto (multipart, campo `arquivo`) |
+| DELETE | `/api/perfil/foto` | autenticado | Remove a foto atual |
+| GET | `/api/usuarios` | autenticado | Lista de pessoas (sem e-mail) |
+| PUT | `/api/usuarios/{id}/cargo` | gerente¹ | Atribui ou remove o cargo de alguém |
+| GET | `/api/cargos` | autenticado | Lista os cargos |
+| POST | `/api/cargos` | diretor | Cria um cargo |
+| PUT/DELETE | `/api/cargos/{id}` | diretor | Atualiza/remove um cargo |
+| GET | `/api/equipes` | autenticado | Lista as equipes |
+| GET | `/api/equipes/arvore` | autenticado | Organograma completo |
+| POST | `/api/equipes` | gerente | Cria uma equipe |
+| PUT/DELETE | `/api/equipes/{id}` | gerente | Atualiza/remove uma equipe |
+| POST | `/api/equipes/{id}/membros` | gerente² | Adiciona um membro à equipe |
+| DELETE | `/api/equipes/{id}/membros/{usuarioId}` | gerente² | Remove um membro da equipe |
 
-Restrição de rotas administrativas por papel (RF11) fica para a Aula 3 — por ora todo
-usuário autenticado pode montar cargos e equipes.
+"Gerente" na coluna significa **gerente ou acima** — a hierarquia é cumulativa.
+¹ O gerente só distribui cargos de Supervisor para baixo, e não altera quem já é
+diretor ou gerente. ² Ou o supervisor daquela equipe específica.
+
+## Permissões (RF11)
+
+```
+                 cargos   equipes    membros           atribuir cargo
+Diretor           CRUD     CRUD      qualquer equipe   qualquer nível
+Gerente           ler      CRUD      qualquer equipe   até Supervisor
+Supervisor        ler      ler       só a sua equipe   não
+Funcionário       ler      ler       não               não
+```
+
+Ler é liberado para qualquer autenticado: o organograma é público dentro da empresa.
+O que a hierarquia restringe é escrever.
+
+A regra mora inteira em `ChatApi/Services/Permissoes.cs`, e cada action de controller
+faz uma pergunta a ela (`if (!await permissoes.PodeGerenciarCargosAsync()) return Forbid();`).
+O nível é lido **do banco**, não do claim `nivel` do JWT — assim uma promoção ou um
+rebaixamento valem na requisição seguinte, e não só no próximo login. O front tem um
+espelho dessas regras em `chat-web/src/lib/permissoes.ts`, usado apenas para não
+desenhar botão que o servidor vai recusar.
+
+**Primeiro acesso:** numa base vazia não existe diretor, e sem diretor ninguém atribui
+cargo. Por isso o startup cria os quatro cargos padrão e a primeira conta registrada
+assume a diretoria. Pelo mesmo motivo o sistema recusa tirar o cargo do último diretor.
 
 Fotos de perfil ficam em `ChatApi/wwwroot/uploads/perfis/` (fora do controle de versão) e
 são servidas como arquivo estático em `/uploads/perfis/<arquivo>`.
@@ -149,7 +180,7 @@ Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swa
 | 27/08 | Setup do projeto | ✅ |
 | 03/09 | Autenticação base | ✅ |
 | 10/09 | Perfil e estrutura organizacional | ✅ |
-| 17/09 | Permissões e hierarquia | — |
+| 17/09 | Permissões e hierarquia | ✅ |
 | 01/10 | Chat privado | — |
 | 08/10 | Chat em grupo e histórico | — |
 | 15/10 | Feed de notícias | — |

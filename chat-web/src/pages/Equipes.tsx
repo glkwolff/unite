@@ -7,10 +7,17 @@ import {
   type MembroResumo,
   type Nivel,
 } from "../api/client";
+import { useAuth } from "../auth/useAuth";
+import {
+  podeGerenciarCargos,
+  podeGerenciarEquipes,
+  podeGerenciarMembros,
+} from "../lib/permissoes";
 
 const NIVEIS: Nivel[] = ["Diretor", "Gerente", "Supervisor", "Funcionario"];
 
 export function Equipes() {
+  const { usuario } = useAuth();
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [usuarios, setUsuarios] = useState<MembroResumo[]>([]);
@@ -62,8 +69,9 @@ export function Equipes() {
           Estrutura organizacional
         </h1>
         <p className="mt-1 text-slate-500">
-          Cadastre cargos, monte as equipes e acompanhe o organograma
-          resultante.
+          {podeGerenciarEquipes(usuario?.nivel)
+            ? "Cadastre cargos, monte as equipes e acompanhe o organograma resultante."
+            : "Acompanhe a estrutura da empresa e o organograma atual."}
         </p>
       </div>
 
@@ -73,10 +81,16 @@ export function Equipes() {
         </p>
       )}
 
-      <SecaoCargos cargos={cargos} comAtualizacao={comAtualizacao} />
+      <SecaoCargos
+        cargos={cargos}
+        editavel={podeGerenciarCargos(usuario?.nivel)}
+        comAtualizacao={comAtualizacao}
+      />
       <SecaoEquipes
         equipes={equipes}
         usuarios={usuarios}
+        usuarioId={usuario?.id}
+        nivel={usuario?.nivel}
         comAtualizacao={comAtualizacao}
       />
       {arvore && <SecaoArvore arvore={arvore} />}
@@ -88,9 +102,12 @@ export function Equipes() {
 
 function SecaoCargos({
   cargos,
+  editavel,
   comAtualizacao,
 }: {
   cargos: Cargo[];
+  /** So o diretor cadastra cargos; os demais veem a lista em modo leitura. */
+  editavel: boolean;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
   const [nome, setNome] = useState("");
@@ -128,46 +145,48 @@ function SecaoCargos({
         ))}
       </ul>
 
-      <form onSubmit={criar} className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="flex-1 min-w-40">
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Nome do cargo
-          </span>
-          <input
-            required
-            maxLength={80}
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Analista de RH"
-            className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          />
-        </label>
+      {editavel && (
+        <form onSubmit={criar} className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="flex-1 min-w-40">
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Nome do cargo
+            </span>
+            <input
+              required
+              maxLength={80}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: Analista de RH"
+              className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            />
+          </label>
 
-        <label>
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Nivel
-          </span>
-          <select
-            value={nivel}
-            onChange={(e) => setNivel(e.target.value as Nivel)}
-            className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+          <label>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Nivel
+            </span>
+            <select
+              value={nivel}
+              onChange={(e) => setNivel(e.target.value as Nivel)}
+              className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            >
+              {NIVEIS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            disabled={enviando}
+            className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
           >
-            {NIVEIS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
-        >
-          Adicionar
-        </button>
-      </form>
+            Adicionar
+          </button>
+        </form>
+      )}
     </section>
   );
 }
@@ -177,10 +196,14 @@ function SecaoCargos({
 function SecaoEquipes({
   equipes,
   usuarios,
+  usuarioId,
+  nivel,
   comAtualizacao,
 }: {
   equipes: Equipe[];
   usuarios: MembroResumo[];
+  usuarioId: string | undefined;
+  nivel: Nivel | null | undefined;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
   const [nome, setNome] = useState("");
@@ -214,55 +237,59 @@ function SecaoEquipes({
             key={eq.id}
             equipe={eq}
             usuarios={usuarios}
+            podeEditarEquipe={podeGerenciarEquipes(nivel)}
+            podeEditarMembros={podeGerenciarMembros(nivel, eq, usuarioId)}
             comAtualizacao={comAtualizacao}
           />
         ))}
       </div>
 
-      <form
-        onSubmit={criar}
-        className="mt-5 flex flex-wrap items-end gap-3 border-t border-unite-100 pt-4"
-      >
-        <label className="flex-1 min-w-40">
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Nome da equipe
-          </span>
-          <input
-            required
-            maxLength={80}
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Equipe Comercial"
-            className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          />
-        </label>
-
-        <label>
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Supervisor
-          </span>
-          <select
-            value={supervisorId}
-            onChange={(e) => setSupervisorId(e.target.value)}
-            className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          >
-            <option value="">Sem supervisor por enquanto</option>
-            {usuarios.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nomeCompleto}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
+      {podeGerenciarEquipes(nivel) && (
+        <form
+          onSubmit={criar}
+          className="mt-5 flex flex-wrap items-end gap-3 border-t border-unite-100 pt-4"
         >
-          Criar equipe
-        </button>
-      </form>
+          <label className="flex-1 min-w-40">
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Nome da equipe
+            </span>
+            <input
+              required
+              maxLength={80}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: Equipe Comercial"
+              className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            />
+          </label>
+
+          <label>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Supervisor
+            </span>
+            <select
+              value={supervisorId}
+              onChange={(e) => setSupervisorId(e.target.value)}
+              className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            >
+              <option value="">Sem supervisor por enquanto</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nomeCompleto}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            disabled={enviando}
+            className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
+          >
+            Criar equipe
+          </button>
+        </form>
+      )}
     </section>
   );
 }
@@ -270,10 +297,16 @@ function SecaoEquipes({
 function CartaoEquipe({
   equipe,
   usuarios,
+  podeEditarEquipe,
+  podeEditarMembros,
   comAtualizacao,
 }: {
   equipe: Equipe;
   usuarios: MembroResumo[];
+  /** Renomear ou excluir a equipe: gerente para cima. */
+  podeEditarEquipe: boolean;
+  /** Entrar e sair da equipe: gerente para cima, ou o supervisor dela. */
+  podeEditarMembros: boolean;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
   const [novoMembroId, setNovoMembroId] = useState("");
@@ -300,15 +333,17 @@ function CartaoEquipe({
             Supervisor: {equipe.supervisor?.nomeCompleto ?? "nao definido"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            comAtualizacao(() => api.delete(`/api/equipes/${equipe.id}`))
-          }
-          className="text-xs text-red-600 hover:underline"
-        >
-          Excluir equipe
-        </button>
+        {podeEditarEquipe && (
+          <button
+            type="button"
+            onClick={() =>
+              comAtualizacao(() => api.delete(`/api/equipes/${equipe.id}`))
+            }
+            className="text-xs text-red-600 hover:underline"
+          >
+            Excluir equipe
+          </button>
+        )}
       </div>
 
       <ul className="mt-3 flex flex-wrap gap-2">
@@ -321,43 +356,47 @@ function CartaoEquipe({
             className="flex items-center gap-1.5 rounded-full bg-unite-50 px-2.5 py-1 text-xs text-unite-900"
           >
             {m.nomeCompleto}
-            <button
-              type="button"
-              title="Remover da equipe"
-              onClick={() =>
-                comAtualizacao(() =>
-                  api.delete(`/api/equipes/${equipe.id}/membros/${m.id}`),
-                )
-              }
-              className="text-slate-400 hover:text-red-600"
-            >
-              ×
-            </button>
+            {podeEditarMembros && (
+              <button
+                type="button"
+                title="Remover da equipe"
+                onClick={() =>
+                  comAtualizacao(() =>
+                    api.delete(`/api/equipes/${equipe.id}/membros/${m.id}`),
+                  )
+                }
+                className="text-slate-400 hover:text-red-600"
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ul>
 
-      <form onSubmit={adicionar} className="mt-3 flex gap-2">
-        <select
-          value={novoMembroId}
-          onChange={(e) => setNovoMembroId(e.target.value)}
-          className="flex-1 rounded-md border border-unite-100 px-2 py-1.5 text-sm outline-none focus:border-unite-400"
-        >
-          <option value="">Adicionar membro…</option>
-          {candidatos.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.nomeCompleto}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          disabled={!novoMembroId}
-          className="rounded-md border border-unite-100 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-unite-50 disabled:opacity-50"
-        >
-          Adicionar
-        </button>
-      </form>
+      {podeEditarMembros && (
+        <form onSubmit={adicionar} className="mt-3 flex gap-2">
+          <select
+            value={novoMembroId}
+            onChange={(e) => setNovoMembroId(e.target.value)}
+            className="flex-1 rounded-md border border-unite-100 px-2 py-1.5 text-sm outline-none focus:border-unite-400"
+          >
+            <option value="">Adicionar membro…</option>
+            {candidatos.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nomeCompleto}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={!novoMembroId}
+            className="rounded-md border border-unite-100 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-unite-50 disabled:opacity-50"
+          >
+            Adicionar
+          </button>
+        </form>
+      )}
     </div>
   );
 }
@@ -373,13 +412,13 @@ function SecaoArvore({ arvore }: { arvore: ArvoreOrganizacional }) {
       </p>
 
       <div className="mt-4 space-y-4">
-        {arvore.gerentes.length > 0 && (
+        {arvore.lideranca.length > 0 && (
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Gerencia
+              Diretoria e gerencia
             </p>
             <div className="flex flex-wrap gap-2">
-              {arvore.gerentes.map((g) => (
+              {arvore.lideranca.map((g) => (
                 <span
                   key={g.id}
                   className="rounded-full bg-unite-900 px-3 py-1 text-xs font-medium text-white"
