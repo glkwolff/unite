@@ -149,7 +149,7 @@ Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swa
 | 27/08 | Setup do projeto | ✅ |
 | 03/09 | Autenticação base | ✅ |
 | 10/09 | Perfil e estrutura organizacional | ✅ |
-| 17/09 | Permissões e hierarquia | — |
+| 17/09 | Permissões e hierarquia | ✅ |
 | 01/10 | Chat privado | — |
 | 08/10 | Chat em grupo e histórico | — |
 | 15/10 | Feed de notícias | — |
