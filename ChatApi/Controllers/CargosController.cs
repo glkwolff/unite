@@ -1,3 +1,4 @@
+using ChatApi.Autorizacao;
 using ChatApi.Data;
 using ChatApi.Dtos;
 using ChatApi.Models;
@@ -7,8 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-// Restricao por papel (RF11) fica para a Aula 3 — por ora, qualquer usuario
-// autenticado monta a estrutura organizacional inicial.
+// Ler a lista de cargos e liberado para qualquer autenticado (o front usa
+// nos selects); criar, editar e apagar e da gerencia para cima (RF11).
 [Authorize]
 [ApiController]
 [Route("api/cargos")]
@@ -25,6 +26,7 @@ public class CargosController(AppDbContext db) : ControllerBase
         return Ok(cargos);
     }
 
+    [ExigeNivel(NivelHierarquico.Gerente)]
     [HttpPost]
     public async Task<ActionResult<CargoDto>> Criar(CargoEntradaDto dto)
     {
@@ -35,6 +37,7 @@ public class CargosController(AppDbContext db) : ControllerBase
         return Ok(new CargoDto(cargo.Id, cargo.Nome, cargo.Nivel, 0));
     }
 
+    [ExigeNivel(NivelHierarquico.Gerente)]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<CargoDto>> Atualizar(Guid id, CargoEntradaDto dto)
     {
@@ -49,14 +52,18 @@ public class CargosController(AppDbContext db) : ControllerBase
         return Ok(new CargoDto(cargo.Id, cargo.Nome, cargo.Nivel, total));
     }
 
+    [ExigeNivel(NivelHierarquico.Gerente)]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Remover(Guid id)
     {
         var cargo = await db.Cargos.FindAsync(id);
         if (cargo is null) return NotFound(new { erro = "Cargo nao encontrado." });
 
-        // Quem tinha esse cargo fica sem cargo (SetNull ja configurado no
-        // DbContext) — ninguem e apagado por causa disso.
+        // Apagar um cargo em uso deixaria pessoas sem nivel — inclusive,
+        // no pior caso, o ultimo diretor. Exige esvaziar o cargo antes.
+        if (await db.Users.AnyAsync(u => u.CargoId == id))
+            return BadRequest(new { erro = "Este cargo ainda tem pessoas: troque o cargo delas antes de remove-lo." });
+
         db.Cargos.Remove(cargo);
         await db.SaveChangesAsync();
 

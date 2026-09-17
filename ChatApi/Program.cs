@@ -108,6 +108,8 @@ using (var escopo = app.Services.CreateScope())
     db.Database.Migrate();
     // WAL: leitor nao bloqueia escritor. E persistente no arquivo do banco.
     db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+    // Sem cargo nenhum no banco ninguem passaria pelo [ExigeNivel].
+    await CargosPadrao.GarantirAsync(db);
 }
 
 if (app.Environment.IsDevelopment())

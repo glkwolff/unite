@@ -11,6 +11,8 @@ public static class MapeamentoOrganizacao
         u.Id,
         u.NomeCompleto,
         u.FotoUrl,
+        u.CargoId,
         u.Cargo?.Nome,
+        u.EquipeId,
         u.Cargo?.Nivel);
 }

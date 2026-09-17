@@ -30,7 +30,9 @@ export interface MembroResumo {
   id: string;
   nomeCompleto: string;
   fotoUrl: string | null;
+  cargoId: string | null;
   cargo: string | null;
+  equipeId: string | null;
   nivel: Nivel | null;
 }
 

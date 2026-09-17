@@ -7,16 +7,21 @@ import {
   type MembroResumo,
   type Nivel,
 } from "../api/client";
+import { useAuth } from "../auth/useAuth";
+import { podeAdministrar, podeGerenciarMembros } from "../auth/permissoes";
 
 const NIVEIS: Nivel[] = ["Diretor", "Gerente", "Supervisor", "Funcionario"];
 
 export function Equipes() {
+  const { usuario } = useAuth();
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [usuarios, setUsuarios] = useState<MembroResumo[]>([]);
   const [arvore, setArvore] = useState<ArvoreOrganizacional | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  const admin = podeAdministrar(usuario?.nivel);
 
   async function recarregar() {
     const [c, e, u, a] = await Promise.all([
@@ -62,8 +67,9 @@ export function Equipes() {
           Estrutura organizacional
         </h1>
         <p className="mt-1 text-slate-500">
-          Cadastre cargos, monte as equipes e acompanhe o organograma
-          resultante.
+          {admin
+            ? "Cadastre cargos, monte as equipes e acompanhe o organograma resultante."
+            : "Voce esta vendo a estrutura em modo leitura: alterar cargos e equipes e da gerencia para cima."}
         </p>
       </div>
 
@@ -73,10 +79,22 @@ export function Equipes() {
         </p>
       )}
 
-      <SecaoCargos cargos={cargos} comAtualizacao={comAtualizacao} />
+      <SecaoCargos cargos={cargos} admin={admin} comAtualizacao={comAtualizacao} />
+      {admin && (
+        <SecaoPessoas
+          usuarios={usuarios}
+          cargos={cargos}
+          equipes={equipes}
+          meuId={usuario?.id}
+          comAtualizacao={comAtualizacao}
+        />
+      )}
       <SecaoEquipes
         equipes={equipes}
         usuarios={usuarios}
+        admin={admin}
+        meuId={usuario?.id}
+        meuNivel={usuario?.nivel ?? null}
         comAtualizacao={comAtualizacao}
       />
       {arvore && <SecaoArvore arvore={arvore} />}
@@ -88,9 +106,11 @@ export function Equipes() {
 
 function SecaoCargos({
   cargos,
+  admin,
   comAtualizacao,
 }: {
   cargos: Cargo[];
+  admin: boolean;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
   const [nome, setNome] = useState("");
@@ -128,46 +148,135 @@ function SecaoCargos({
         ))}
       </ul>
 
-      <form onSubmit={criar} className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="flex-1 min-w-40">
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Nome do cargo
-          </span>
-          <input
-            required
-            maxLength={80}
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Analista de RH"
-            className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          />
-        </label>
+      {admin && (
+        <form onSubmit={criar} className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="flex-1 min-w-40">
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Nome do cargo
+            </span>
+            <input
+              required
+              maxLength={80}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: Analista de RH"
+              className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            />
+          </label>
 
-        <label>
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Nivel
-          </span>
-          <select
-            value={nivel}
-            onChange={(e) => setNivel(e.target.value as Nivel)}
-            className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+          <label>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Nivel
+            </span>
+            <select
+              value={nivel}
+              onChange={(e) => setNivel(e.target.value as Nivel)}
+              className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            >
+              {NIVEIS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            disabled={enviando}
+            className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
           >
-            {NIVEIS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+            Adicionar
+          </button>
+        </form>
+      )}
+    </section>
+  );
+}
 
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
-        >
-          Adicionar
-        </button>
-      </form>
+// --------------------------------------------------------------- pessoas
+
+/** Onde cargo e equipe sao atribuidos. So a gerencia chega aqui. */
+function SecaoPessoas({
+  usuarios,
+  cargos,
+  equipes,
+  meuId,
+  comAtualizacao,
+}: {
+  usuarios: MembroResumo[];
+  cargos: Cargo[];
+  equipes: Equipe[];
+  meuId: string | undefined;
+  comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
+}) {
+  return (
+    <section className="rounded-xl border border-unite-100 bg-white p-6">
+      <h2 className="font-medium text-unite-900">Pessoas</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Defina o cargo — que e o que concede permissao — e a equipe de cada um.
+      </p>
+
+      <ul className="mt-4 divide-y divide-unite-100">
+        {usuarios.map((u) => (
+          <li
+            key={u.id}
+            className="flex flex-wrap items-center justify-between gap-3 py-2.5"
+          >
+            <span className="text-sm font-medium text-unite-900">
+              {u.nomeCompleto}
+              {u.id === meuId && (
+                <span className="ml-2 text-xs font-normal text-slate-400">
+                  (voce)
+                </span>
+              )}
+            </span>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                // O proprio cargo fica travado: promover a si mesmo furaria a
+                // hierarquia inteira (a API recusa isso de qualquer forma).
+                disabled={u.id === meuId}
+                value={u.cargoId ?? ""}
+                onChange={(e) =>
+                  comAtualizacao(() =>
+                    api.put(`/api/usuarios/${u.id}/cargo`, {
+                      cargoId: e.target.value || null,
+                    }),
+                  )
+                }
+                className="rounded-md border border-unite-100 px-2 py-1.5 text-sm outline-none focus:border-unite-400 disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                <option value="">Sem cargo</option>
+                {cargos.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} · {c.nivel}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={u.equipeId ?? ""}
+                onChange={(e) =>
+                  comAtualizacao(() =>
+                    api.put(`/api/usuarios/${u.id}/equipe`, {
+                      equipeId: e.target.value || null,
+                    }),
+                  )
+                }
+                className="rounded-md border border-unite-100 px-2 py-1.5 text-sm outline-none focus:border-unite-400"
+              >
+                <option value="">Sem equipe</option>
+                {equipes.map((eq) => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -177,10 +286,16 @@ function SecaoCargos({
 function SecaoEquipes({
   equipes,
   usuarios,
+  admin,
+  meuId,
+  meuNivel,
   comAtualizacao,
 }: {
   equipes: Equipe[];
   usuarios: MembroResumo[];
+  admin: boolean;
+  meuId: string | undefined;
+  meuNivel: Nivel | null;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
   const [nome, setNome] = useState("");
@@ -214,55 +329,63 @@ function SecaoEquipes({
             key={eq.id}
             equipe={eq}
             usuarios={usuarios}
+            admin={admin}
+            podeMexerNosMembros={podeGerenciarMembros(
+              meuNivel,
+              meuId,
+              eq.supervisor?.id ?? null,
+            )}
             comAtualizacao={comAtualizacao}
           />
         ))}
       </div>
 
-      <form
-        onSubmit={criar}
-        className="mt-5 flex flex-wrap items-end gap-3 border-t border-unite-100 pt-4"
-      >
-        <label className="flex-1 min-w-40">
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Nome da equipe
-          </span>
-          <input
-            required
-            maxLength={80}
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Equipe Comercial"
-            className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          />
-        </label>
-
-        <label>
-          <span className="mb-1 block text-sm font-medium text-slate-700">
-            Supervisor
-          </span>
-          <select
-            value={supervisorId}
-            onChange={(e) => setSupervisorId(e.target.value)}
-            className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
-          >
-            <option value="">Sem supervisor por enquanto</option>
-            {usuarios.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nomeCompleto}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          type="submit"
-          disabled={enviando}
-          className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
+      {admin && (
+        <form
+          onSubmit={criar}
+          className="mt-5 flex flex-wrap items-end gap-3 border-t border-unite-100 pt-4"
         >
-          Criar equipe
-        </button>
-      </form>
+          <label className="flex-1 min-w-40">
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Nome da equipe
+            </span>
+            <input
+              required
+              maxLength={80}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: Equipe Comercial"
+              className="w-full rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            />
+          </label>
+
+          <label>
+            <span className="mb-1 block text-sm font-medium text-slate-700">
+              Supervisor
+            </span>
+            <select
+              value={supervisorId}
+              onChange={(e) => setSupervisorId(e.target.value)}
+              className="rounded-md border border-unite-100 px-3 py-2 outline-none focus:border-unite-400"
+            >
+              <option value="">Sem supervisor por enquanto</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nomeCompleto}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            disabled={enviando}
+            className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900 disabled:opacity-60"
+          >
+            Criar equipe
+          </button>
+        </form>
+      )}
     </section>
   );
 }
@@ -270,10 +393,14 @@ function SecaoEquipes({
 function CartaoEquipe({
   equipe,
   usuarios,
+  admin,
+  podeMexerNosMembros,
   comAtualizacao,
 }: {
   equipe: Equipe;
   usuarios: MembroResumo[];
+  admin: boolean;
+  podeMexerNosMembros: boolean;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
   const [novoMembroId, setNovoMembroId] = useState("");
@@ -300,15 +427,17 @@ function CartaoEquipe({
             Supervisor: {equipe.supervisor?.nomeCompleto ?? "nao definido"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            comAtualizacao(() => api.delete(`/api/equipes/${equipe.id}`))
-          }
-          className="text-xs text-red-600 hover:underline"
-        >
-          Excluir equipe
-        </button>
+        {admin && (
+          <button
+            type="button"
+            onClick={() =>
+              comAtualizacao(() => api.delete(`/api/equipes/${equipe.id}`))
+            }
+            className="text-xs text-red-600 hover:underline"
+          >
+            Excluir equipe
+          </button>
+        )}
       </div>
 
       <ul className="mt-3 flex flex-wrap gap-2">
@@ -321,43 +450,47 @@ function CartaoEquipe({
             className="flex items-center gap-1.5 rounded-full bg-unite-50 px-2.5 py-1 text-xs text-unite-900"
           >
             {m.nomeCompleto}
-            <button
-              type="button"
-              title="Remover da equipe"
-              onClick={() =>
-                comAtualizacao(() =>
-                  api.delete(`/api/equipes/${equipe.id}/membros/${m.id}`),
-                )
-              }
-              className="text-slate-400 hover:text-red-600"
-            >
-              ×
-            </button>
+            {podeMexerNosMembros && (
+              <button
+                type="button"
+                title="Remover da equipe"
+                onClick={() =>
+                  comAtualizacao(() =>
+                    api.delete(`/api/equipes/${equipe.id}/membros/${m.id}`),
+                  )
+                }
+                className="text-slate-400 hover:text-red-600"
+              >
+                ×
+              </button>
+            )}
           </li>
         ))}
       </ul>
 
-      <form onSubmit={adicionar} className="mt-3 flex gap-2">
-        <select
-          value={novoMembroId}
-          onChange={(e) => setNovoMembroId(e.target.value)}
-          className="flex-1 rounded-md border border-unite-100 px-2 py-1.5 text-sm outline-none focus:border-unite-400"
-        >
-          <option value="">Adicionar membro…</option>
-          {candidatos.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.nomeCompleto}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          disabled={!novoMembroId}
-          className="rounded-md border border-unite-100 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-unite-50 disabled:opacity-50"
-        >
-          Adicionar
-        </button>
-      </form>
+      {podeMexerNosMembros && (
+        <form onSubmit={adicionar} className="mt-3 flex gap-2">
+          <select
+            value={novoMembroId}
+            onChange={(e) => setNovoMembroId(e.target.value)}
+            className="flex-1 rounded-md border border-unite-100 px-2 py-1.5 text-sm outline-none focus:border-unite-400"
+          >
+            <option value="">Adicionar membro…</option>
+            {candidatos.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nomeCompleto}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={!novoMembroId}
+            className="rounded-md border border-unite-100 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-unite-50 disabled:opacity-50"
+          >
+            Adicionar
+          </button>
+        </form>
+      )}
     </div>
   );
 }

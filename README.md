@@ -80,7 +80,11 @@ ChatApi/
 ├── Controllers/PerfilController.cs    ver/editar perfil, upload de foto
 ├── Controllers/CargosController.cs    CRUD de cargos
 ├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
-├── Controllers/UsuariosController.cs  listagem resumida (selects do front)
+├── Controllers/UsuariosController.cs  listagem resumida e lotacao (cargo/equipe)
+├── Autorizacao/ExigeNivelAttribute.cs filtro [ExigeNivel] nas rotas restritas
+├── Autorizacao/Permissoes.cs          as regras de quem pode o que
+├── Autorizacao/UsuarioLogado.cs       id pelo token, nivel pelo banco
+├── Data/CargosPadrao.cs               semente dos quatro cargos iniciais
 ├── Data/AppDbContext.cs               mapeamento das entidades
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
 ├── Models/                            Usuario, Cargo, Equipe, Sala,
@@ -92,7 +96,7 @@ ChatApi/
 
 chat-web/src/
 ├── api/client.ts                   wrapper de fetch com Bearer, PUT/DELETE e upload
-├── auth/                           AuthContext, useAuth, RotaProtegida
+├── auth/                           AuthContext, useAuth, RotaProtegida, permissoes
 ├── components/Layout.tsx           casca com sidebar e topbar
 └── pages/                          Login, Cadastro, Home, Perfil, Equipes
 ```
@@ -124,21 +128,50 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | POST | `/api/perfil/foto` | Bearer | Upload da foto (multipart, campo `arquivo`) |
 | DELETE | `/api/perfil/foto` | Bearer | Remove a foto atual |
 | GET | `/api/usuarios` | Bearer | Lista resumida (para montar equipes) |
-| GET/POST | `/api/cargos` | Bearer | Lista/cria cargos |
-| PUT/DELETE | `/api/cargos/{id}` | Bearer | Atualiza/remove um cargo |
-| GET/POST | `/api/equipes` | Bearer | Lista/cria equipes |
+| PUT | `/api/usuarios/{id}/cargo` | Gerente+ | Define (ou tira) o cargo de alguém |
+| PUT | `/api/usuarios/{id}/equipe` | Gerente+ | Lota (ou desliga) alguém de uma equipe |
+| GET | `/api/cargos` | Bearer | Lista cargos |
+| POST | `/api/cargos` | Gerente+ | Cria cargo |
+| PUT/DELETE | `/api/cargos/{id}` | Gerente+ | Atualiza/remove um cargo |
+| GET | `/api/equipes` | Bearer | Lista equipes |
 | GET | `/api/equipes/arvore` | Bearer | Organograma completo |
-| PUT/DELETE | `/api/equipes/{id}` | Bearer | Atualiza/remove uma equipe |
-| POST | `/api/equipes/{id}/membros` | Bearer | Adiciona um membro à equipe |
-| DELETE | `/api/equipes/{id}/membros/{usuarioId}` | Bearer | Remove um membro da equipe |
-
-Restrição de rotas administrativas por papel (RF11) fica para a Aula 3 — por ora todo
-usuário autenticado pode montar cargos e equipes.
+| POST | `/api/equipes` | Gerente+ | Cria equipe |
+| PUT/DELETE | `/api/equipes/{id}` | Gerente+ | Atualiza/remove uma equipe |
+| POST | `/api/equipes/{id}/membros` | Gerente+ ou supervisor da equipe | Adiciona um membro |
+| DELETE | `/api/equipes/{id}/membros/{usuarioId}` | Gerente+ ou supervisor da equipe | Remove um membro |
 
 Fotos de perfil ficam em `ChatApi/wwwroot/uploads/perfis/` (fora do controle de versão) e
 são servidas como arquivo estático em `/uploads/perfis/<arquivo>`.
 
 Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swagger/v1/swagger.json`.
+
+---
+
+## Permissões (RF11)
+
+Os quatro níveis são `Diretor` (0), `Gerente` (1), `Supervisor` (2) e `Funcionario` (3) —
+quanto **menor** o número, mais alto o cargo. A permissão vem do **cargo** da pessoa, não
+de uma lista de papéis separada: promover alguém é trocar o cargo dele.
+
+| Nível | O que pode |
+| --- | --- |
+| Diretor, Gerente | Criar/editar cargos e equipes, atribuir cargo e equipe a qualquer pessoa |
+| Supervisor | Entrar e sair membros **da equipe que ele supervisiona** |
+| Funcionario / sem cargo | Somente leitura da estrutura |
+
+Duas travas explícitas em `Permissoes.PodeAtribuirCargo`: ninguém atribui um cargo acima
+do próprio nível e ninguém altera o próprio cargo.
+
+O nível é lido **do banco** a cada requisição, e não da claim do JWT: o token vive 8 horas
+e uma promoção precisa valer na requisição seguinte, não no próximo login.
+
+**Bootstrap:** banco novo ganha os quatro cargos padrão no startup (`CargosPadrao`) e a
+**primeira conta cadastrada nasce Diretora** — sem isso ninguém teria permissão para
+montar a estrutura inicial. Do segundo cadastro em diante, quem entra fica sem cargo até
+ser lotado.
+
+O front (`src/auth/permissoes.ts`) espelha essas regras apenas para esconder botão que a
+API recusaria — quem decide é sempre o servidor.
 
 ---
 
@@ -149,7 +182,7 @@ Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swa
 | 27/08 | Setup do projeto | ✅ |
 | 03/09 | Autenticação base | ✅ |
 | 10/09 | Perfil e estrutura organizacional | ✅ |
-| 17/09 | Permissões e hierarquia | — |
+| 17/09 | Permissões e hierarquia | ✅ |
 | 01/10 | Chat privado | — |
 | 08/10 | Chat em grupo e histórico | — |
 | 15/10 | Feed de notícias | — |

@@ -1,3 +1,4 @@
+using ChatApi.Autorizacao;
 using ChatApi.Data;
 using ChatApi.Dtos;
 using ChatApi.Models;
@@ -48,17 +49,20 @@ public class EquipesController(AppDbContext db) : ControllerBase
             .OrderBy(e => e.Nome)
             .ToListAsync();
 
+        // Topo da arvore: quem administra a estrutura (diretoria e gerencia).
+        // Nao aparecem de novo em "sem equipe", mesmo sem equipe definida.
         var gerentes = usuarios
-            .Where(u => u.Cargo?.Nivel == NivelHierarquico.Gerente)
+            .Where(u => Permissoes.PodeAdministrar(u.Cargo?.Nivel))
             .Select(MapeamentoOrganizacao.ParaResumo);
 
         var semEquipe = usuarios
-            .Where(u => u.EquipeId is null && u.Cargo?.Nivel != NivelHierarquico.Gerente)
+            .Where(u => u.EquipeId is null && !Permissoes.PodeAdministrar(u.Cargo?.Nivel))
             .Select(MapeamentoOrganizacao.ParaResumo);
 
         return Ok(new ArvoreOrganizacionalDto(gerentes, equipes.Select(Mapear), semEquipe));
     }
 
+    [ExigeNivel(NivelHierarquico.Gerente)]
     [HttpPost]
     public async Task<ActionResult<EquipeDto>> Criar(EquipeEntradaDto dto)
     {
@@ -72,6 +76,7 @@ public class EquipesController(AppDbContext db) : ControllerBase
         return Ok(await ObterMapeadaAsync(equipe.Id));
     }
 
+    [ExigeNivel(NivelHierarquico.Gerente)]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<EquipeDto>> Atualizar(Guid id, EquipeEntradaDto dto)
     {
@@ -88,6 +93,7 @@ public class EquipesController(AppDbContext db) : ControllerBase
         return Ok(await ObterMapeadaAsync(equipe.Id));
     }
 
+    [ExigeNivel(NivelHierarquico.Gerente)]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Remover(Guid id)
     {
@@ -104,8 +110,10 @@ public class EquipesController(AppDbContext db) : ControllerBase
     [HttpPost("{id:guid}/membros")]
     public async Task<ActionResult<EquipeDto>> AdicionarMembro(Guid id, AdicionarMembroDto dto)
     {
-        var equipe = await db.Equipes.AnyAsync(e => e.Id == id);
-        if (!equipe) return NotFound(new { erro = "Equipe nao encontrada." });
+        var equipe = await db.Equipes.FirstOrDefaultAsync(e => e.Id == id);
+        if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
+
+        if (await NegarSeNaoGerenciaAsync(equipe) is ObjectResult negado) return negado;
 
         var usuario = await db.Users.FindAsync(dto.UsuarioId);
         if (usuario is null) return NotFound(new { erro = "Usuario nao encontrado." });
@@ -119,6 +127,11 @@ public class EquipesController(AppDbContext db) : ControllerBase
     [HttpDelete("{id:guid}/membros/{usuarioId:guid}")]
     public async Task<ActionResult<EquipeDto>> RemoverMembro(Guid id, Guid usuarioId)
     {
+        var equipe = await db.Equipes.FirstOrDefaultAsync(e => e.Id == id);
+        if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
+
+        if (await NegarSeNaoGerenciaAsync(equipe) is ObjectResult negado) return negado;
+
         var usuario = await db.Users.FirstOrDefaultAsync(u => u.Id == usuarioId && u.EquipeId == id);
         if (usuario is null) return NotFound(new { erro = "Membro nao encontrado nesta equipe." });
 
@@ -126,6 +139,24 @@ public class EquipesController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
 
         return Ok(await ObterMapeadaAsync(id));
+    }
+
+    /// <summary>Lotar e desligar membros nao usa [ExigeNivel] porque a regra
+    /// depende da equipe: o supervisor so manda na equipe que ele responde.
+    /// Devolve null quando a acao esta liberada.</summary>
+    private async Task<ObjectResult?> NegarSeNaoGerenciaAsync(Equipe equipe)
+    {
+        var nivel = await UsuarioLogado.NivelAsync(User, db);
+        var usuarioId = UsuarioLogado.Id(User) ?? Guid.Empty;
+
+        if (Permissoes.PodeGerenciarMembros(nivel, usuarioId, equipe.SupervisorId))
+            return null;
+
+        return new ObjectResult(new
+        {
+            erro = "Apenas a gerencia ou o supervisor desta equipe pode alterar os membros."
+        })
+        { StatusCode = StatusCodes.Status403Forbidden };
     }
 
     private async Task<EquipeDto> ObterMapeadaAsync(Guid id)

@@ -29,6 +29,17 @@ public class AuthController(
             NomeCompleto = dto.NomeCompleto
         };
 
+        // A primeira conta do sistema ja nasce diretora: alguem precisa ter
+        // permissao para montar a estrutura e promover os demais. Da segunda
+        // em diante, quem entra fica sem cargo ate ser lotado.
+        if (!await db.Users.AnyAsync())
+        {
+            usuario.CargoId = await db.Cargos
+                .Where(c => c.Nivel == NivelHierarquico.Diretor)
+                .Select(c => (Guid?)c.Id)
+                .FirstOrDefaultAsync();
+        }
+
         var resultado = await usuarios.CreateAsync(usuario, dto.Senha);
         if (!resultado.Succeeded)
             return BadRequest(new { erro = string.Join(" ", resultado.Errors.Select(e => e.Description)) });

@@ -36,7 +36,14 @@ public class AdicionarMembroDto
 
 /// <summary>Recorte minimo de usuario, usado dentro de listas e da arvore —
 /// nunca expoe e-mail/senha alem do estritamente necessario para a UI.</summary>
-public record MembroResumoDto(Guid Id, string NomeCompleto, string? FotoUrl, string? Cargo, NivelHierarquico? Nivel);
+public record MembroResumoDto(
+    Guid Id,
+    string NomeCompleto,
+    string? FotoUrl,
+    Guid? CargoId,
+    string? Cargo,
+    Guid? EquipeId,
+    NivelHierarquico? Nivel);
 
 public record EquipeDto(
     Guid Id,
@@ -47,11 +54,24 @@ public record EquipeDto(
 // ---------------------------------------------------------- arvore (organograma)
 
 /// <summary>
-/// Estrutura pronta para desenhar o organograma no front: gerentes no topo
-/// (sem vinculo formal de equipe — enxergam tudo), depois cada equipe com
+/// Estrutura pronta para desenhar o organograma no front: diretoria e
+/// gerencia no topo (quem administra a estrutura), depois cada equipe com
 /// seu supervisor e membros, e por fim quem ainda nao foi alocado.
 /// </summary>
 public record ArvoreOrganizacionalDto(
     IEnumerable<MembroResumoDto> Gerentes,
     IEnumerable<EquipeDto> Equipes,
     IEnumerable<MembroResumoDto> SemEquipe);
+
+// ------------------------------------------------------- lotacao de pessoas
+
+/// <summary>Nulo em CargoId significa "sem cargo" — e uma escolha valida.</summary>
+public class DefinirCargoDto
+{
+    public Guid? CargoId { get; set; }
+}
+
+public class DefinirEquipeDto
+{
+    public Guid? EquipeId { get; set; }
+}
