@@ -65,8 +65,18 @@ public class CargosController(AppDbContext db, Permissoes permissoes) : Controll
         var cargo = await db.Cargos.FindAsync(id);
         if (cargo is null) return NotFound(new { erro = "Cargo nao encontrado." });
 
-        // Quem tinha esse cargo fica sem cargo (SetNull ja configurado no
-        // DbContext) — ninguem e apagado por causa disso.
+        // O SetNull do DbContext nao apaga ninguem, mas deixaria todo mundo
+        // desse cargo sem nivel. Apagar o cargo de diretor com gente dentro
+        // tiraria a diretoria inteira de uma vez: ninguem mais gerenciaria
+        // cargos e nao haveria volta pela aplicacao, porque o SeedCargos so
+        // age com a tabela vazia. Esvaziar o cargo antes e explicito e
+        // reversivel.
+        if (await db.Users.AnyAsync(u => u.CargoId == id))
+            return BadRequest(new
+            {
+                erro = "Este cargo ainda tem pessoas: troque o cargo delas antes de remove-lo."
+            });
+
         db.Cargos.Remove(cargo);
         await db.SaveChangesAsync();
 

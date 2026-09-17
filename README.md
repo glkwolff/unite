@@ -164,7 +164,10 @@ desenhar botão que o servidor vai recusar.
 
 **Primeiro acesso:** numa base vazia não existe diretor, e sem diretor ninguém atribui
 cargo. Por isso o startup cria os quatro cargos padrão e a primeira conta registrada
-assume a diretoria. Pelo mesmo motivo o sistema recusa tirar o cargo do último diretor.
+assume a diretoria. Pelo mesmo motivo o sistema recusa tirar o cargo do último diretor
+e recusa apagar um cargo que ainda tem pessoas — apagar o cargo de diretor tiraria a
+diretoria inteira de uma vez, e a semente do startup não volta a rodar com a tabela
+de cargos já preenchida.
 
 Fotos de perfil ficam em `ChatApi/wwwroot/uploads/perfis/` (fora do controle de versão) e
 são servidas como arquivo estático em `/uploads/perfis/<arquivo>`.
