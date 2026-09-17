@@ -13,4 +13,15 @@ public static class MapeamentoOrganizacao
         u.FotoUrl,
         u.Cargo?.Nome,
         u.Cargo?.Nivel);
+
+    /// <summary>Assume Cargo e Equipe ja incluidos — mesmo cuidado com N+1.</summary>
+    public static PessoaDto ParaPessoa(Usuario u) => new(
+        u.Id,
+        u.NomeCompleto,
+        u.FotoUrl,
+        u.CargoId,
+        u.Cargo?.Nome,
+        u.Cargo?.Nivel,
+        u.EquipeId,
+        u.Equipe?.Nome);
 }

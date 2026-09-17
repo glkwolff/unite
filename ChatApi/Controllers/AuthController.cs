@@ -14,13 +14,20 @@ namespace ChatApi.Controllers;
 public class AuthController(
     UserManager<Usuario> usuarios,
     AppDbContext db,
-    TokenService tokens) : ControllerBase
+    TokenService tokens,
+    Permissoes permissoes) : ControllerBase
 {
     [HttpPost("registrar")]
     public async Task<ActionResult<AuthRespostaDto>> Registrar(RegistrarDto dto)
     {
         if (await usuarios.FindByEmailAsync(dto.Email) is not null)
             return Conflict(new { erro = "Ja existe um usuario com este e-mail." });
+
+        // Ovo e galinha: sem diretor ninguem atribui cargo, e sem cargo
+        // ninguem e diretor. Quem registra a conta numa base vazia assume a
+        // diretoria. A corrida aqui e aceitavel — instancia unica, e o caso e
+        // o primeirissimo registro do sistema.
+        var baseVazia = !await db.Users.AnyAsync();
 
         var usuario = new Usuario
         {
@@ -32,6 +39,15 @@ public class AuthController(
         var resultado = await usuarios.CreateAsync(usuario, dto.Senha);
         if (!resultado.Succeeded)
             return BadRequest(new { erro = string.Join(" ", resultado.Errors.Select(e => e.Description)) });
+
+        if (baseVazia)
+        {
+            usuario.CargoId = await db.Cargos
+                .Where(c => c.Nivel == NivelHierarquico.Diretor)
+                .Select(c => (Guid?)c.Id)
+                .FirstOrDefaultAsync();
+            await db.SaveChangesAsync();
+        }
 
         return Ok(await MontarRespostaAsync(usuario));
     }
@@ -51,15 +67,7 @@ public class AuthController(
     [HttpGet("eu")]
     public async Task<ActionResult<UsuarioDto>> Eu()
     {
-        var id = User.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(id, out var usuarioId))
-            return Unauthorized();
-
-        var usuario = await db.Users
-            .Include(u => u.Cargo)
-            .Include(u => u.Equipe)
-            .FirstOrDefaultAsync(u => u.Id == usuarioId);
-
+        var usuario = await permissoes.UsuarioAtualAsync();
         return usuario is null ? Unauthorized() : Ok(Mapear(usuario));
     }
 

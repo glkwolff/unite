@@ -10,6 +10,11 @@ public class TokenService(IConfiguration config)
 {
     public const string ClaimNivel = "nivel";
 
+    /// <summary>
+    /// O claim "nivel" e uma conveniencia para o front decidir o que desenhar.
+    /// Autorizacao nao se apoia nele: <see cref="Permissoes"/> le o cargo do
+    /// banco, senao uma promocao ou rebaixamento so valeria no proximo login.
+    /// </summary>
     public (string Token, DateTime ExpiraEm) Gerar(Usuario usuario, NivelHierarquico? nivel)
     {
         var chave = config["Jwt:Chave"]

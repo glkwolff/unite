@@ -6,6 +6,7 @@ import { Equipes } from './pages/Equipes'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Perfil } from './pages/Perfil'
+import { Pessoas } from './pages/Pessoas'
 
 export default function App() {
   return (
@@ -38,6 +39,16 @@ export default function App() {
           <RotaProtegida>
             <Layout>
               <Equipes />
+            </Layout>
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/pessoas"
+        element={
+          <RotaProtegida nivelMinimo="Gerente">
+            <Layout>
+              <Pessoas />
             </Layout>
           </RotaProtegida>
         }

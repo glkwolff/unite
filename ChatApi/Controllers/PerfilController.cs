@@ -1,10 +1,9 @@
-using ChatApi.Data;
 using ChatApi.Dtos;
 using ChatApi.Models;
+using ChatApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
@@ -13,7 +12,7 @@ namespace ChatApi.Controllers;
 [Route("api/perfil")]
 public class PerfilController(
     UserManager<Usuario> usuarios,
-    AppDbContext db,
+    Permissoes permissoes,
     IWebHostEnvironment ambiente) : ControllerBase
 {
     // Guarda so as extensoes que o front realmente exibe como <img>.
@@ -23,14 +22,14 @@ public class PerfilController(
     [HttpGet]
     public async Task<ActionResult<UsuarioDto>> Obter()
     {
-        var usuario = await UsuarioAtualAsync();
+        var usuario = await permissoes.UsuarioAtualAsync();
         return usuario is null ? Unauthorized() : Ok(Mapear(usuario));
     }
 
     [HttpPut]
     public async Task<ActionResult<UsuarioDto>> Atualizar(AtualizarPerfilDto dto)
     {
-        var usuario = await UsuarioAtualAsync();
+        var usuario = await permissoes.UsuarioAtualAsync();
         if (usuario is null) return Unauthorized();
 
         usuario.NomeCompleto = dto.NomeCompleto.Trim();
@@ -56,7 +55,7 @@ public class PerfilController(
         if (!ExtensoesPermitidas.Contains(extensao))
             return BadRequest(new { erro = "Formatos aceitos: JPG, PNG ou WEBP." });
 
-        var usuario = await UsuarioAtualAsync();
+        var usuario = await permissoes.UsuarioAtualAsync();
         if (usuario is null) return Unauthorized();
 
         var pastaWebroot = ambiente.WebRootPath
@@ -84,7 +83,7 @@ public class PerfilController(
     [HttpDelete("foto")]
     public async Task<ActionResult<UsuarioDto>> RemoverFoto()
     {
-        var usuario = await UsuarioAtualAsync();
+        var usuario = await permissoes.UsuarioAtualAsync();
         if (usuario is null) return Unauthorized();
 
         var pastaWebroot = ambiente.WebRootPath
@@ -105,17 +104,6 @@ public class PerfilController(
             if (System.IO.File.Exists(caminho))
                 System.IO.File.Delete(caminho);
         }
-    }
-
-    private async Task<Usuario?> UsuarioAtualAsync()
-    {
-        var id = User.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(id, out var usuarioId)) return null;
-
-        return await db.Users
-            .Include(u => u.Cargo)
-            .Include(u => u.Equipe)
-            .FirstOrDefaultAsync(u => u.Id == usuarioId);
     }
 
     private static UsuarioDto Mapear(Usuario u) => new(

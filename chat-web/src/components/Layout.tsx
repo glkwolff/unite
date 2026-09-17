@@ -3,16 +3,23 @@ import { NavLink } from 'react-router-dom'
 import { urlArquivo } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { iniciais } from '../lib/iniciais'
-
-const NAVEGACAO = [
-  { rotulo: 'Feed', caminho: '/', disponivel: false },
-  { rotulo: 'Chat', caminho: '/chat', disponivel: false },
-  { rotulo: 'Equipes', caminho: '/equipes', disponivel: true },
-  { rotulo: 'Perfil', caminho: '/perfil', disponivel: true },
-]
+import { podeAtribuirCargo } from '../lib/permissoes'
 
 export function Layout({ children }: { children: ReactNode }) {
   const { usuario, sair } = useAuth()
+
+  const NAVEGACAO = [
+    { rotulo: 'Feed', caminho: '/', disponivel: false },
+    { rotulo: 'Chat', caminho: '/chat', disponivel: false },
+    { rotulo: 'Equipes', caminho: '/equipes', disponivel: true },
+    // Item sem permissao some da lista. Feed e Chat ficam apagados porque
+    // ainda vao chegar — apagar "Pessoas" so anunciaria a tela a quem nao
+    // pode abri-la.
+    ...(podeAtribuirCargo(usuario?.nivel)
+      ? [{ rotulo: 'Pessoas', caminho: '/pessoas', disponivel: true }]
+      : []),
+    { rotulo: 'Perfil', caminho: '/perfil', disponivel: true },
+  ]
 
   return (
     <div className="flex h-full">

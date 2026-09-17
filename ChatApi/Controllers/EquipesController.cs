@@ -11,7 +11,7 @@ namespace ChatApi.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/equipes")]
-public class EquipesController(AppDbContext db) : ControllerBase
+public class EquipesController(AppDbContext db, Permissoes permissoes) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<EquipeDto>>> Listar()
@@ -48,20 +48,25 @@ public class EquipesController(AppDbContext db) : ControllerBase
             .OrderBy(e => e.Nome)
             .ToListAsync();
 
-        var gerentes = usuarios
-            .Where(u => u.Cargo?.Nivel == NivelHierarquico.Gerente)
+        // Diretor e gerente ficam no topo, fora das equipes. Antes so o
+        // gerente era tratado assim e o diretor caia no balde "sem equipe".
+        var lideranca = usuarios
+            .Where(EstaNaLideranca)
             .Select(MapeamentoOrganizacao.ParaResumo);
 
         var semEquipe = usuarios
-            .Where(u => u.EquipeId is null && u.Cargo?.Nivel != NivelHierarquico.Gerente)
+            .Where(u => u.EquipeId is null && !EstaNaLideranca(u))
             .Select(MapeamentoOrganizacao.ParaResumo);
 
-        return Ok(new ArvoreOrganizacionalDto(gerentes, equipes.Select(Mapear), semEquipe));
+        return Ok(new ArvoreOrganizacionalDto(lideranca, equipes.Select(Mapear), semEquipe));
     }
 
     [HttpPost]
     public async Task<ActionResult<EquipeDto>> Criar(EquipeEntradaDto dto)
     {
+        if (!await permissoes.PodeGerenciarEquipesAsync())
+            return Forbid();
+
         if (dto.SupervisorId is Guid supervisorId && !await db.Users.AnyAsync(u => u.Id == supervisorId))
             return BadRequest(new { erro = "Supervisor informado nao existe." });
 
@@ -75,6 +80,9 @@ public class EquipesController(AppDbContext db) : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<EquipeDto>> Atualizar(Guid id, EquipeEntradaDto dto)
     {
+        if (!await permissoes.PodeGerenciarEquipesAsync())
+            return Forbid();
+
         var equipe = await db.Equipes.FindAsync(id);
         if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
 
@@ -91,6 +99,9 @@ public class EquipesController(AppDbContext db) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Remover(Guid id)
     {
+        if (!await permissoes.PodeGerenciarEquipesAsync())
+            return Forbid();
+
         var equipe = await db.Equipes.FindAsync(id);
         if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
 
@@ -104,6 +115,10 @@ public class EquipesController(AppDbContext db) : ControllerBase
     [HttpPost("{id:guid}/membros")]
     public async Task<ActionResult<EquipeDto>> AdicionarMembro(Guid id, AdicionarMembroDto dto)
     {
+        // Gerente para cima mexe em qualquer equipe; o supervisor, so na dele.
+        if (!await permissoes.PodeGerenciarMembrosAsync(id))
+            return Forbid();
+
         var equipe = await db.Equipes.AnyAsync(e => e.Id == id);
         if (!equipe) return NotFound(new { erro = "Equipe nao encontrada." });
 
@@ -119,6 +134,9 @@ public class EquipesController(AppDbContext db) : ControllerBase
     [HttpDelete("{id:guid}/membros/{usuarioId:guid}")]
     public async Task<ActionResult<EquipeDto>> RemoverMembro(Guid id, Guid usuarioId)
     {
+        if (!await permissoes.PodeGerenciarMembrosAsync(id))
+            return Forbid();
+
         var usuario = await db.Users.FirstOrDefaultAsync(u => u.Id == usuarioId && u.EquipeId == id);
         if (usuario is null) return NotFound(new { erro = "Membro nao encontrado nesta equipe." });
 
@@ -127,6 +145,9 @@ public class EquipesController(AppDbContext db) : ControllerBase
 
         return Ok(await ObterMapeadaAsync(id));
     }
+
+    /// <summary>Diretoria e gerencia nao pertencem a uma equipe: lideram todas.</summary>
+    private static bool EstaNaLideranca(Usuario u) => u.Cargo?.Nivel <= NivelHierarquico.Gerente;
 
     private async Task<EquipeDto> ObterMapeadaAsync(Guid id)
     {
