@@ -1,10 +1,12 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using ChatApi.Data;
+using ChatApi.Hubs;
 using ChatApi.Models;
 using ChatApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -68,7 +70,7 @@ builder.Services
         };
 
         // O WebSocket do SignalR nao envia header Authorization: o token vem
-        // na query string. O hub entra em 01/10; a configuracao ja fica pronta.
+        // na query string. Vale para o ChatHub, mapeado em /chat.
         o.Events = new JwtBearerEvents
         {
             OnMessageReceived = ctx =>
@@ -99,6 +101,11 @@ builder.Services
     .AddControllers()
     // Sem isto o NivelHierarquico chega no front como 1/2/3 em vez de "Gerente".
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+// ---------------------------------------------------------------- signalr
+builder.Services.AddSignalR();
+// Sem isto o Clients.Users(...) nao acharia ninguem: ver ProvedorIdUsuario.
+builder.Services.AddSingleton<IUserIdProvider, ProvedorIdUsuario>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -132,6 +139,7 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ChatHub>("/chat");
 
 app.Run();
 
