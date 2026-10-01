@@ -97,6 +97,72 @@ public class Permissoes(AppDbContext db, IHttpContextAccessor http)
         return novoCargo is null || novoCargo.Nivel >= NivelHierarquico.Supervisor;
     }
 
+    // ------------------------------------------------------------------ feed
+    //
+    //                  publicar   aviso institucional   remover postagem
+    // Diretor           sim        sim                   qualquer uma
+    // Gerente           sim        sim                   qualquer uma
+    // Supervisor        sim        nao                   so as proprias
+    // Funcionario       nao        nao                   -
+    //
+    // Ler o feed continua liberado para qualquer autenticado.
+
+    /// <summary>Publicar no feed: supervisor para cima. O funcionario le e
+    /// (a partir de 22/10) confirma ciencia, mas nao publica.</summary>
+    public Task<bool> PodePublicarAsync() => TemNivelAsync(NivelHierarquico.Supervisor);
+
+    /// <summary>Aviso institucional fala em nome da empresa inteira, entao fica
+    /// com quem esta acima das equipes: gerente e diretor.</summary>
+    public Task<bool> PodePublicarInstitucionalAsync() => TemNivelAsync(NivelHierarquico.Gerente);
+
+    /// <summary>
+    /// O autor remove a propria postagem; gerente para cima remove qualquer
+    /// uma (moderacao). Quem foi rebaixado a funcionario ainda consegue tirar
+    /// o que ele mesmo publicou — apagar o proprio texto nao da poder novo.
+    /// </summary>
+    public async Task<bool> PodeRemoverPostagemAsync(Postagem postagem) =>
+        postagem.AutorId == IdLogado || await PodePublicarInstitucionalAsync();
+
+    // ---------------------------------------------------------------- ciente
+    //
+    // Marcar "Ciente": qualquer autenticado, em qualquer postagem que nao seja
+    // a propria (o autor ja sabe o que escreveu).
+    //
+    // Ver QUEM marcou:
+    //                  em quais postagens                     quais leitores
+    // Diretor           todas                                  todos
+    // Gerente           de supervisores e funcionarios         todos
+    //                   + as proprias
+    // Supervisor        so as proprias                         so funcionarios
+    // Funcionario       nenhuma                                -
+    //
+    // Pessoa sem cargo conta como funcionario, nos dois papeis (autor e leitor).
+
+    public bool PodeMarcarCiente(Postagem postagem) => postagem.AutorId != IdLogado;
+
+    /// <summary>Exige <c>postagem.Autor.Cargo</c> carregado: a regra do gerente
+    /// depende do nivel atual de quem publicou.</summary>
+    public async Task<bool> PodeVerCienciasAsync(Postagem postagem)
+    {
+        var propria = postagem.AutorId == IdLogado;
+
+        return await NivelAsync() switch
+        {
+            NivelHierarquico.Diretor => true,
+            NivelHierarquico.Gerente => propria || NivelEfetivo(postagem.Autor.Cargo?.Nivel) >= NivelHierarquico.Supervisor,
+            NivelHierarquico.Supervisor => propria,
+            _ => false
+        };
+    }
+
+    /// <summary>Dentro de uma lista que o usuario ja pode ver, este leitor
+    /// aparece? So o supervisor tem a lista recortada (ve apenas funcionarios).</summary>
+    public async Task<bool> PodeVerLeitorAsync(NivelHierarquico? nivelDoLeitor) =>
+        await NivelAsync() != NivelHierarquico.Supervisor
+        || NivelEfetivo(nivelDoLeitor) == NivelHierarquico.Funcionario;
+
+    private static NivelHierarquico NivelEfetivo(NivelHierarquico? nivel) => nivel ?? NivelHierarquico.Funcionario;
+
     /// <summary>Nivel numericamente menor ou igual = poder maior ou igual.</summary>
     private async Task<bool> TemNivelAsync(NivelHierarquico minimo) =>
         await NivelAsync() is NivelHierarquico nivel && nivel <= minimo;

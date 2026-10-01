@@ -71,6 +71,36 @@ export interface Mensagem {
   enviadaEm: string;
 }
 
+export interface Postagem {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  institucional: boolean;
+  /** ISO 8601 em UTC (com "Z"); o navegador converte para o fuso local. */
+  publicadaEm: string;
+  autor: MembroResumo;
+  /** Calculado pelo servidor: autor da postagem ou gerente para cima. */
+  podeRemover: boolean;
+  /** Quando o usuario logado marcou "Ciente"; null se ainda nao marcou. */
+  cienteEm: string | null;
+  /** Falso so para o autor da postagem. */
+  podeMarcarCiente: boolean;
+  /** Se pode abrir a lista de quem marcou (regra hierarquica no servidor). */
+  podeVerCiencias: boolean;
+  /** Quantos ele enxerga nessa lista; null quando nao pode ver. */
+  totalCiencias: number | null;
+}
+
+export interface Ciencia {
+  usuario: MembroResumo;
+  confirmadaEm: string;
+}
+
+export interface PaginaFeed {
+  itens: Postagem[];
+  temMais: boolean;
+}
+
 export class ApiError extends Error {
   // Campo declarado explicitamente: parameter properties nao passam no
   // erasableSyntaxOnly que o template do Vite habilita.

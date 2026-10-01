@@ -49,6 +49,24 @@ export function podeGerenciarMembros(
   )
 }
 
+/**
+ * Feed:            publicar   aviso institucional
+ * Diretor           sim        sim
+ * Gerente           sim        sim
+ * Supervisor        sim        nao
+ * Funcionario       nao        nao
+ *
+ * Remover, marcar "Ciente" e ver quem marcou nao tem espelho aqui: cada
+ * postagem ja chega com `podeRemover`, `podeMarcarCiente` e `podeVerCiencias`.
+ */
+export function podePublicar(nivel: Nivel | null | undefined) {
+  return temNivel(nivel, 'Supervisor')
+}
+
+export function podePublicarInstitucional(nivel: Nivel | null | undefined) {
+  return temNivel(nivel, 'Gerente')
+}
+
 /** O gerente so distribui cargos de Supervisor para baixo. */
 export function cargosAtribuiveis(nivel: Nivel | null | undefined, cargos: Cargo[]) {
   if (podeGerenciarCargos(nivel)) return cargos
