@@ -14,7 +14,7 @@ Trabalho da disciplina de Planejamento de Projeto de Sistema Visual — defesa e
 
 | Camada | Tecnologia |
 | --- | --- |
-| Backend | .NET 8 (LTS) · ASP.NET Core Web API · SignalR *(a partir de 01/10)* |
+| Backend | .NET 8 (LTS) · ASP.NET Core Web API · SignalR |
 | Dados | SQLite em modo WAL · Entity Framework Core 10 |
 | Autenticação | ASP.NET Core Identity · JWT · Google OAuth *(a partir de 29/10)* |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 |
@@ -81,6 +81,8 @@ ChatApi/
 ├── Controllers/CargosController.cs    CRUD de cargos
 ├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
 ├── Controllers/UsuariosController.cs  listagem de pessoas e atribuição de cargo
+├── Controllers/SalasController.cs     conversas privadas e mensagens
+├── Hubs/ChatHub.cs                    canal de tempo real (só recebe)
 ├── Data/AppDbContext.cs               mapeamento das entidades
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
 ├── Data/SeedCargos.cs                 cria os 4 cargos padrão numa base nova
@@ -89,6 +91,7 @@ ChatApi/
 ├── Services/TokenService.cs           emissão do JWT
 ├── Services/Permissoes.cs             quem pode o quê (RF11)
 ├── Services/MapeamentoOrganizacao.cs  Usuario -> MembroResumoDto
+├── Services/ProvedorIdUsuario.cs      claim "sub" como id do usuario no SignalR
 ├── wwwroot/uploads/perfis/            fotos de perfil (fora do git)
 └── Migrations/
 
@@ -97,7 +100,9 @@ chat-web/src/
 ├── auth/                           AuthContext, useAuth, RotaProtegida
 ├── components/Layout.tsx           casca com sidebar e topbar
 ├── lib/permissoes.ts               espelho das regras do backend, só para a UI
-└── pages/                          Login, Cadastro, Home, Perfil, Equipes, Pessoas
+├── lib/hubChat.ts                  conexão SignalR de leitura do chat
+└── pages/                          Login, Cadastro, Home, Perfil, Equipes,
+                                    Pessoas, Chat
 ```
 
 ---
@@ -137,10 +142,16 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | PUT/DELETE | `/api/equipes/{id}` | gerente | Atualiza/remove uma equipe |
 | POST | `/api/equipes/{id}/membros` | gerente² | Adiciona um membro à equipe |
 | DELETE | `/api/equipes/{id}/membros/{usuarioId}` | gerente² | Remove um membro da equipe |
+| GET | `/api/salas` | autenticado | Minhas conversas, a mais recente primeiro |
+| POST | `/api/salas/privada` | autenticado | Abre (ou reabre) a conversa com alguém |
+| GET | `/api/salas/{id}/mensagens` | participante | Histórico da conversa, `?limite=50` |
+| POST | `/api/salas/{id}/mensagens` | participante | Envia a mensagem e avisa o hub |
+| WS | `/chat` | autenticado³ | Hub SignalR: emite `MensagemRecebida` |
 
 "Gerente" na coluna significa **gerente ou acima** — a hierarquia é cumulativa.
 ¹ O gerente só distribui cargos de Supervisor para baixo, e não altera quem já é
-diretor ou gerente. ² Ou o supervisor daquela equipe específica.
+diretor ou gerente. ² Ou o supervisor daquela equipe específica. ³ Pelo WebSocket o
+token vai na query string (`?access_token=`), porque o protocolo não manda header.
 
 ## Permissões (RF11)
 
@@ -176,6 +187,27 @@ Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swa
 
 ---
 
+## Chat privado
+
+A escrita é HTTP, a leitura é SignalR: o front envia por `POST /api/salas/{id}/mensagens`
+e o `SalasController` grava e dispara o broadcast via `IHubContext<ChatHub>`. O hub não
+tem método nenhum — validação e autorização ficam num caminho só, o do controller.
+
+O broadcast usa `Clients.Users(...)`, que endereça pelo id do usuário e dispensa
+gerenciar grupos a cada conexão. Para isso o `ProvedorIdUsuario` aponta a claim `sub`:
+o provedor padrão do SignalR procura `ClaimTypes.NameIdentifier`, que não existe aqui
+porque o JWT é lido com `MapInboundClaims = false`.
+
+A sala privada nasce sob demanda e é idempotente: `POST /api/salas/privada` devolve a
+conversa que já existia entre as duas pessoas ou cria uma nova. O `Sala.Nome` fica vazio
+na conversa privada — o título exibido é o nome do outro participante, montado a cada
+resposta, para não envelhecer quando alguém editar o perfil.
+
+Conversa não segue hierarquia: `SalasController` não tem `[ExigeNivel]`. A única trava é
+ser participante da sala — quem não é leva 403.
+
+---
+
 ## Progresso
 
 | Data | Etapa | Situação |
@@ -184,7 +216,7 @@ Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swa
 | 03/09 | Autenticação base | ✅ |
 | 10/09 | Perfil e estrutura organizacional | ✅ |
 | 17/09 | Permissões e hierarquia | ✅ |
-| 01/10 | Chat privado | — |
+| 01/10 | Chat privado | ✅ |
 | 08/10 | Chat em grupo e histórico | — |
 | 15/10 | Feed de notícias | — |
 | 22/10 | Botão "Ciente" | — |

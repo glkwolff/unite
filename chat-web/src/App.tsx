@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { RotaProtegida } from './auth/RotaProtegida'
 import { Layout } from './components/Layout'
 import { Cadastro } from './pages/Cadastro'
+import { Chat } from './pages/Chat'
 import { Equipes } from './pages/Equipes'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
@@ -49,6 +50,16 @@ export default function App() {
           <RotaProtegida nivelMinimo="Gerente">
             <Layout>
               <Pessoas />
+            </Layout>
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          <RotaProtegida>
+            <Layout>
+              <Chat />
             </Layout>
           </RotaProtegida>
         }

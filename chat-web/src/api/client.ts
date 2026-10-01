@@ -54,6 +54,23 @@ export interface ArvoreOrganizacional {
   semEquipe: MembroResumo[];
 }
 
+export interface SalaResumo {
+  id: string;
+  /** Na conversa privada o titulo da sala e o nome desta pessoa. */
+  outro: MembroResumo;
+  ultimaMensagem: string | null;
+  ultimaEm: string | null;
+}
+
+export interface Mensagem {
+  id: string;
+  salaId: string;
+  autorId: string;
+  autorNome: string;
+  texto: string;
+  enviadaEm: string;
+}
+
 export class ApiError extends Error {
   // Campo declarado explicitamente: parameter properties nao passam no
   // erasableSyntaxOnly que o template do Vite habilita.
@@ -121,6 +138,11 @@ export const api = {
     );
   },
 };
+
+/** O SignalR monta a conexao fora do fetch e precisa da URL absoluta. */
+export function urlHub() {
+  return `${BASE}/chat`;
+}
 
 export function urlArquivo(caminho: string) {
   return caminho.startsWith("http") ? caminho : `${BASE}${caminho}`;
