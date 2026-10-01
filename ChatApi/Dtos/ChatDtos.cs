@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ChatApi.Models;
 
 namespace ChatApi.Dtos;
 
@@ -11,13 +12,21 @@ public class AbrirPrivadaDto
 }
 
 /// <summary>
-/// Uma conversa na lista lateral. Na sala privada o titulo e sempre o nome do
-/// <see cref="Outro"/> participante, montado na hora: nome guardado no campo
-/// Sala.Nome ficaria velho assim que a pessoa editasse o perfil.
+/// Uma conversa na lista lateral, servindo os dois tipos de sala. O
+/// <see cref="Titulo"/> e montado a cada resposta — nome do outro na privada,
+/// nome da equipe no canal — porque guardado em Sala.Nome ficaria velho assim
+/// que alguem editasse o perfil ou a equipe fosse renomeada.
+///
+/// <see cref="Outro"/> so existe na privada, onde sustenta a foto e o cargo no
+/// cabecalho: canal de equipe nao tem "o outro". Nao ha contagem de
+/// participantes porque ela custaria uma consulta por canal na listagem para
+/// alimentar um subtitulo que o <see cref="Tipo"/> ja permite escrever.
 /// </summary>
 public record SalaResumoDto(
     Guid Id,
-    MembroResumoDto Outro,
+    TipoSala Tipo,
+    string Titulo,
+    MembroResumoDto? Outro,
     string? UltimaMensagem,
     DateTime? UltimaEm);
 
