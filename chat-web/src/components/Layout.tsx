@@ -9,11 +9,11 @@ export function Layout({ children }: { children: ReactNode }) {
   const { usuario, sair } = useAuth()
 
   const NAVEGACAO = [
-    { rotulo: 'Feed', caminho: '/', disponivel: false },
+    { rotulo: 'Feed', caminho: '/', disponivel: true },
     { rotulo: 'Chat', caminho: '/chat', disponivel: true },
     { rotulo: 'Equipes', caminho: '/equipes', disponivel: true },
-    // Item sem permissao some da lista. O Feed fica apagado porque ainda vai
-    // chegar — apagar "Pessoas" so anunciaria a tela a quem nao pode abri-la.
+    // Item sem permissao some da lista: apagar "Pessoas" so anunciaria a
+    // tela a quem nao pode abri-la.
     ...(podeAtribuirCargo(usuario?.nivel)
       ? [{ rotulo: 'Pessoas', caminho: '/pessoas', disponivel: true }]
       : []),
@@ -52,7 +52,6 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </nav>
 
-        <p className="px-6 py-4 text-xs text-unite-400">O Feed chega a partir de 15/10</p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

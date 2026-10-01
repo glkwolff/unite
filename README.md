@@ -82,6 +82,7 @@ ChatApi/
 ├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
 ├── Controllers/UsuariosController.cs  listagem de pessoas e atribuição de cargo
 ├── Controllers/SalasController.cs     conversas privadas e mensagens
+├── Controllers/PostagensController.cs feed de notícias: listar, publicar, remover
 ├── Hubs/ChatHub.cs                    canal de tempo real (só recebe)
 ├── Data/AppDbContext.cs               mapeamento das entidades
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
@@ -101,7 +102,7 @@ chat-web/src/
 ├── components/Layout.tsx           casca com sidebar e topbar
 ├── lib/permissoes.ts               espelho das regras do backend, só para a UI
 ├── lib/hubChat.ts                  conexão SignalR de leitura do chat
-└── pages/                          Login, Cadastro, Home, Perfil, Equipes,
+└── pages/                          Login, Cadastro, Feed, Perfil, Equipes,
                                     Pessoas, Chat
 ```
 
@@ -147,11 +148,20 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | GET | `/api/salas/{id}/mensagens` | participante | Histórico da conversa, `?limite=50` |
 | POST | `/api/salas/{id}/mensagens` | participante | Envia a mensagem e avisa o hub |
 | WS | `/chat` | autenticado³ | Hub SignalR: emite `MensagemRecebida` |
+| GET | `/api/postagens?antes=&limite=` | autenticado | Feed, do mais recente ao mais antigo⁴ |
+| GET | `/api/postagens/{id}` | autenticado | Uma postagem |
+| POST | `/api/postagens` | supervisor⁵ | Publica um aviso |
+| DELETE | `/api/postagens/{id}` | autor ou gerente | Remove um aviso |
+| POST | `/api/postagens/{id}/ciente` | autenticado, menos o autor | Marca "Ciente" (sem desfazer) |
+| GET | `/api/postagens/{id}/ciencias` | ver tabela abaixo | Quem marcou "Ciente" e quando |
 
 "Gerente" na coluna significa **gerente ou acima** — a hierarquia é cumulativa.
 ¹ O gerente só distribui cargos de Supervisor para baixo, e não altera quem já é
 diretor ou gerente. ² Ou o supervisor daquela equipe específica. ³ Pelo WebSocket o
 token vai na query string (`?access_token=`), porque o protocolo não manda header.
+⁴ Paginação por cursor: `antes` é o `publicadaEm` da última postagem recebida; a resposta
+traz `{ itens, temMais }`. `limite` vai de 1 a 50 (padrão 20). Datas saem em UTC (`...Z`)
+e o front exibe no fuso de quem lê. ⁵ Aviso com `institucional: true` exige gerente.
 
 ## Permissões (RF11)
 
@@ -162,6 +172,32 @@ Gerente           ler      CRUD      qualquer equipe   até Supervisor
 Supervisor        ler      ler       só a sua equipe   não
 Funcionário       ler      ler       não               não
 ```
+
+Feed de notícias:
+
+```
+                 publicar   aviso institucional   remover postagem
+Diretor           sim        sim                   qualquer uma
+Gerente           sim        sim                   qualquer uma
+Supervisor        sim        não                   só as próprias
+Funcionário       não        não                   —
+```
+
+Botão "Ciente": qualquer pessoa marca em qualquer postagem que não seja a própria.
+Ver **quem** marcou depende do nível:
+
+```
+                 em quais postagens                    quais leitores aparecem
+Diretor           todas                                 todos
+Gerente           de supervisores e funcionários        todos
+                  + as próprias
+Supervisor        só as próprias                        só funcionários
+Funcionário       nenhuma                               —
+```
+
+Quem não tem cargo conta como funcionário. Cada postagem já chega do servidor com
+`podeMarcarCiente`, `podeVerCiencias`, `totalCiencias` e `cienteEm` calculados, então o
+front não replica essas regras.
 
 Ler é liberado para qualquer autenticado: o organograma é público dentro da empresa.
 O que a hierarquia restringe é escrever.
@@ -218,8 +254,8 @@ ser participante da sala — quem não é leva 403.
 | 17/09 | Permissões e hierarquia | ✅ |
 | 01/10 | Chat privado | ✅ |
 | 08/10 | Chat em grupo e histórico | — |
-| 15/10 | Feed de notícias | — |
-| 22/10 | Botão "Ciente" | — |
+| 15/10 | Feed de notícias | ✅ (adiantado) |
+| 22/10 | Botão "Ciente" | ✅ (adiantado) |
 | 29/10 | Login com Google | — |
 | 05/11 | Testes de integração | — |
 | 12/11 | Ajustes finais | — |

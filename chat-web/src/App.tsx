@@ -4,7 +4,7 @@ import { Layout } from './components/Layout'
 import { Cadastro } from './pages/Cadastro'
 import { Chat } from './pages/Chat'
 import { Equipes } from './pages/Equipes'
-import { Home } from './pages/Home'
+import { Feed } from './pages/Feed'
 import { Login } from './pages/Login'
 import { Perfil } from './pages/Perfil'
 import { Pessoas } from './pages/Pessoas'
@@ -19,7 +19,7 @@ export default function App() {
         element={
           <RotaProtegida>
             <Layout>
-              <Home />
+              <Feed />
             </Layout>
           </RotaProtegida>
         }
