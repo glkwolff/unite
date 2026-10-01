@@ -10,6 +10,8 @@ import { useAuth } from "../auth/useAuth";
 import { conectarChat } from "../lib/hubChat";
 import { iniciais } from "../lib/iniciais";
 
+const SEM_TEMPO_REAL = "Sem conexao em tempo real. Recarregue a pagina.";
+
 export function Chat() {
   const { usuario } = useAuth();
   const [salas, setSalas] = useState<SalaResumo[]>([]);
@@ -19,6 +21,9 @@ export function Chat() {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // A conexao tem vida propria: cai e volta sozinha, sem ninguem clicar.
+  // Por isso o aviso dela nao mora em `erro`, que abrir() e enviar() limpam.
+  const [avisoConexao, setAvisoConexao] = useState<string | null>(null);
 
   // O handler do hub vive fora do ciclo de render (a conexao e aberta uma vez
   // so), entao ele nao enxergaria o estado atual: a ref resolve isso.
@@ -43,6 +48,12 @@ export function Chat() {
   }, []);
 
   useEffect(() => {
+    // O StrictMode monta o efeito duas vezes em dev: o cleanup do primeiro
+    // monte para a conexao no meio da negociacao e o start() rejeita. Esse
+    // start() fomos nos que abortamos, nao e falha de rede — a flag separa os
+    // dois casos para o aviso nao nascer de um erro que provocamos.
+    let cancelado = false;
+
     const conexao = conectarChat((mensagem) => {
       if (mensagem.salaId === salaAbertaRef.current?.id) {
         setMensagens((atuais) => [...atuais, mensagem]);
@@ -57,11 +68,26 @@ export function Chat() {
       );
     });
 
+    // withAutomaticReconnect so cobre queda depois de uma conexao estabelecida,
+    // e nesse caso ele mesmo resolve: o aviso diz para esperar, nao para
+    // recarregar. Recarregar a pagina e saida apenas quando a conexao desiste.
+    conexao.onreconnecting(() => setAvisoConexao("Conexao caiu. Reconectando…"));
+    conexao.onreconnected(() => setAvisoConexao(null));
+    conexao.onclose(() => {
+      if (!cancelado) setAvisoConexao(SEM_TEMPO_REAL);
+    });
+
     conexao
       .start()
-      .catch(() => setErro("Sem conexao em tempo real. Recarregue a pagina."));
+      .then(() => {
+        if (!cancelado) setAvisoConexao(null);
+      })
+      .catch(() => {
+        if (!cancelado) setAvisoConexao(SEM_TEMPO_REAL);
+      });
 
     return () => {
+      cancelado = true;
       conexao.stop();
     };
   }, []);
@@ -144,6 +170,12 @@ export function Chat() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col rounded-xl border border-unite-100 bg-white">
+        {avisoConexao && (
+          <p className="m-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {avisoConexao}
+          </p>
+        )}
+
         {erro && (
           <p className="m-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
         )}
