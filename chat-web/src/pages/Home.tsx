@@ -6,7 +6,7 @@ const ETAPAS = [
   { data: '10/09', titulo: 'Perfil e estrutura organizacional', pronto: true },
   { data: '17/09', titulo: 'Permissoes e hierarquia', pronto: true },
   { data: '01/10', titulo: 'Chat privado', pronto: true },
-  { data: '08/10', titulo: 'Chat em grupo e historico', pronto: false },
+  { data: '08/10', titulo: 'Chat em grupo e historico', pronto: true },
   { data: '15/10', titulo: 'Feed de noticias', pronto: false },
   { data: '22/10', titulo: 'Botao "Ciente"', pronto: false },
   { data: '29/10', titulo: 'Login com Google', pronto: false },
