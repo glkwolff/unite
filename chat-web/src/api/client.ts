@@ -54,10 +54,15 @@ export interface ArvoreOrganizacional {
   semEquipe: MembroResumo[];
 }
 
+export type TipoSala = "Privada" | "Grupo";
+
 export interface SalaResumo {
   id: string;
-  /** Na conversa privada o titulo da sala e o nome desta pessoa. */
-  outro: MembroResumo;
+  tipo: TipoSala;
+  /** Montado pelo servidor a cada resposta: nome do outro (privada) ou da equipe (canal). */
+  titulo: string;
+  /** Null no canal de equipe: la nao existe "o outro". */
+  outro: MembroResumo | null;
   ultimaMensagem: string | null;
   ultimaEm: string | null;
 }

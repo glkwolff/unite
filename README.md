@@ -144,7 +144,8 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | DELETE | `/api/equipes/{id}/membros/{usuarioId}` | gerente² | Remove um membro da equipe |
 | GET | `/api/salas` | autenticado | Minhas conversas, a mais recente primeiro |
 | POST | `/api/salas/privada` | autenticado | Abre (ou reabre) a conversa com alguém |
-| GET | `/api/salas/{id}/mensagens` | participante | Histórico da conversa, `?limite=50` |
+| POST | `/api/salas/equipe` | autenticado⁴ | Abre (ou cria) o canal da minha equipe |
+| GET | `/api/salas/{id}/mensagens` | participante | Histórico, `?limite=50&antesDe=<data>` |
 | POST | `/api/salas/{id}/mensagens` | participante | Envia a mensagem e avisa o hub |
 | WS | `/chat` | autenticado³ | Hub SignalR: emite `MensagemRecebida` |
 
@@ -152,6 +153,7 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 ¹ O gerente só distribui cargos de Supervisor para baixo, e não altera quem já é
 diretor ou gerente. ² Ou o supervisor daquela equipe específica. ³ Pelo WebSocket o
 token vai na query string (`?access_token=`), porque o protocolo não manda header.
+⁴ Exige estar em alguma equipe: sem equipe a rota devolve 400.
 
 ## Permissões (RF11)
 
@@ -187,7 +189,7 @@ Em desenvolvimento o Swagger UI fica em `/swagger` e o contrato OpenAPI em `/swa
 
 ---
 
-## Chat privado
+## Chat privado e canal de equipe
 
 A escrita é HTTP, a leitura é SignalR: o front envia por `POST /api/salas/{id}/mensagens`
 e o `SalasController` grava e dispara o broadcast via `IHubContext<ChatHub>`. O hub não
@@ -206,6 +208,55 @@ resposta, para não envelhecer quando alguém editar o perfil.
 Conversa não segue hierarquia: `SalasController` não tem `[ExigeNivel]`. A única trava é
 ser participante da sala — quem não é leva 403.
 
+### O canal da equipe
+
+Grupo, aqui, é sempre o **canal automático de uma equipe** — não existe grupo com
+participantes escolhidos à mão. O canal nasce no primeiro clique
+(`POST /api/salas/equipe`, idempotente) e não junto com a equipe, senão as equipes que já
+estão no banco nunca ganhariam canal.
+
+**O canal não guarda a lista de participantes.** Participante dele é quem tem
+`Usuario.EquipeId` igual ao `Sala.EquipeId`, consultado na hora; o canal não tem uma
+linha em `SalaUsuarios`. Gravar essa lista criaria duas fontes da mesma verdade, que
+divergiriam no instante em que alguém entrasse ou saísse da equipe — e o `DELETE` de
+equipe aplica o `SetNull` **dentro do banco**, onde sincronização nenhuma do EF
+alcançaria. Por isso `AdicionarMembro` e `RemoverMembro` não têm uma linha sobre chat, e
+quem entra na equipe passa a receber a próxima mensagem sem religar a conexão.
+
+Os dois caminhos de participação ficam lado a lado em `SalasController.ParticipantesAsync`,
+que alimenta tanto a autorização quanto a lista de destinatários do broadcast — o envio
+nunca mira gente diferente da que a autorização considerou.
+
+Três consequências aceitas, todas visíveis na leitura do código:
+
+- quem **sai da equipe perde o acesso** ao histórico do canal (as mensagens dele
+  continuam lá, com o nome, para quem ficou);
+- **diretor e gerente não participam de canal nenhum**, porque não têm equipe — coerente
+  com "conversa não segue hierarquia";
+- o **supervisor precisa ser membro da equipe**, e não só o `SupervisorId` dela: a
+  participação é uma regra só, `EquipeId`, e não duas.
+
+A equipe apagada leva o canal e as mensagens junto. Sem isso a sala ficaria com
+`EquipeId` nulo — sem participante nenhum, invisível para todos e com o histórico preso
+no banco. E a comparação `EquipeId` é sempre feita com o `Guid` aberto antes da consulta
+(`if (sala.EquipeId is not Guid equipeId)`): o EF Core compensa a semântica de nulo do
+SQL, então comparar duas colunas nulas daria o canal órfão para toda a liderança.
+
+### Histórico paginado
+
+`GET /api/salas/{id}/mensagens` aceita `?antesDe=<data>` e devolve o pedaço
+imediatamente anterior ao cursor, apoiado no índice `(SalaId, EnviadaEm)` que já existia.
+A resposta continua sendo um array puro: "ainda tem mais" se descobre pela contagem —
+veio a página cheia, pode haver mais. Um envelope `{ itens, temMais }` mudaria o contrato
+para dar um sinal que o tamanho da resposta já dá.
+
+No front, quem altera a lista de mensagens declara para onde o histórico deve rolar
+(`modoScroll`): mensagem nova entra no fim e puxa a leitura para baixo; página antiga
+entra no topo e a rolagem é devolvida na exata altura que o conteúdo cresceu, para a
+mensagem que estava sendo lida não sair do lugar. O ajuste é um `useLayoutEffect`, antes
+da pintura, e a trava de "já estou buscando" é uma `ref`, porque o `onScroll` dispara
+dezenas de vezes antes do próximo render.
+
 ---
 
 ## Progresso
@@ -217,7 +268,7 @@ ser participante da sala — quem não é leva 403.
 | 10/09 | Perfil e estrutura organizacional | ✅ |
 | 17/09 | Permissões e hierarquia | ✅ |
 | 01/10 | Chat privado | ✅ |
-| 08/10 | Chat em grupo e histórico | — |
+| 08/10 | Chat em grupo e histórico | ✅ |
 | 15/10 | Feed de notícias | — |
 | 22/10 | Botão "Ciente" | — |
 | 29/10 | Login com Google | — |

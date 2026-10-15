@@ -105,6 +105,13 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         var equipe = await db.Equipes.FindAsync(id);
         if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
 
+        // O canal morre com a equipe: participante do canal e quem esta na
+        // equipe, entao sem equipe a sala ficaria sem ninguem e invisivel para
+        // sempre, com as mensagens presas no banco. O cascade leva o historico.
+        var canal = await db.Salas
+            .FirstOrDefaultAsync(s => s.Tipo == TipoSala.Grupo && s.EquipeId == id);
+        if (canal is not null) db.Salas.Remove(canal);
+
         // Membros ficam sem equipe (SetNull) em vez de serem apagados junto.
         db.Equipes.Remove(equipe);
         await db.SaveChangesAsync();
