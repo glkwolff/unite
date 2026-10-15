@@ -1,8 +1,9 @@
 namespace ChatApi.Models;
 
 /// <summary>
-/// Juncao entre sala e participante. Sustenta tanto a conversa privada
-/// (dois participantes) quanto o grupo (varios).
+/// Juncao entre sala e participante. Vale so para a conversa privada: o canal
+/// de equipe nao tem linha aqui, porque participar dele e estar na equipe —
+/// ver <see cref="Sala.Participantes"/>.
 /// </summary>
 public class SalaUsuario
 {
