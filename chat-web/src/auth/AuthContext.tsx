@@ -1,11 +1,26 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react'
-import { api, token, type AuthResposta, type Usuario } from '../api/client'
+import {
+  api,
+  token,
+  type AuthResposta,
+  type ChaveAuthenticator,
+  type Desafio,
+  type Usuario,
+} from '../api/client'
+
+/** O que falta depois da senha. `chave` vem preenchida quando o 2FA ainda vai ser cadastrado. */
+export interface SegundaEtapa {
+  desafio: string
+  chave: ChaveAuthenticator | null
+}
 
 interface AuthContexto {
   usuario: Usuario | null
   carregando: boolean
-  entrar: (email: string, senha: string) => Promise<void>
-  cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<void>
+  /** Nulo quando ja entrou; senao, a etapa do codigo que falta. */
+  entrar: (email: string, senha: string) => Promise<SegundaEtapa | null>
+  cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<SegundaEtapa | null>
+  concluirEntrada: (resposta: AuthResposta) => void
   sair: () => void
   /** Atualiza o usuario em memoria (ex.: apos editar perfil ou trocar foto),
    * sem precisar relogar para o header refletir a mudanca. */
@@ -38,12 +53,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsuario(resposta.usuario)
   }
 
+  async function seguir(resposta: AuthResposta | Desafio): Promise<SegundaEtapa | null> {
+    if (!('desafio' in resposta)) {
+      aplicar(resposta)
+      return null
+    }
+
+    const chave =
+      resposta.etapa === 'configurar'
+        ? await api.post<ChaveAuthenticator>('/api/auth/2fa/configurar', {
+            desafio: resposta.desafio,
+          })
+        : null
+    return { desafio: resposta.desafio, chave }
+  }
+
   async function entrar(email: string, senha: string) {
-    aplicar(await api.post<AuthResposta>('/api/auth/login', { email, senha }))
+    return seguir(await api.post<AuthResposta | Desafio>('/api/auth/login', { email, senha }))
   }
 
   async function cadastrar(nomeCompleto: string, email: string, senha: string) {
-    aplicar(await api.post<AuthResposta>('/api/auth/registrar', { nomeCompleto, email, senha }))
+    return seguir(
+      await api.post<AuthResposta | Desafio>('/api/auth/registrar', { nomeCompleto, email, senha }),
+    )
   }
 
   function sair() {
@@ -53,7 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <ContextoAuth.Provider
-      value={{ usuario, carregando, entrar, cadastrar, sair, atualizarUsuario: setUsuario }}
+      value={{
+        usuario,
+        carregando,
+        entrar,
+        cadastrar,
+        concluirEntrada: aplicar,
+        sair,
+        atualizarUsuario: setUsuario,
+      }}
     >
       {children}
     </ContextoAuth.Provider>

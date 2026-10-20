@@ -11,12 +11,25 @@ export interface Usuario {
   cargo: string | null;
   equipe: string | null;
   nivel: Nivel | null;
+  doisFatoresAtivo: boolean;
+  doisFatoresObrigatorio: boolean;
 }
 
 export interface AuthResposta {
   token: string;
   expiraEm: string;
   usuario: Usuario;
+}
+
+/** Senha certa, falta o codigo: "codigo" ja usa o Authenticator, "configurar" ainda vai cadastrar. */
+export interface Desafio {
+  desafio: string;
+  etapa: "codigo" | "configurar";
+}
+
+export interface ChaveAuthenticator {
+  chave: string;
+  uri: string;
 }
 
 export interface Cargo {

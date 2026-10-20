@@ -17,9 +17,6 @@ public class TokenService(IConfiguration config)
     /// </summary>
     public (string Token, DateTime ExpiraEm) Gerar(Usuario usuario, NivelHierarquico? nivel)
     {
-        var chave = config["Jwt:Chave"]
-            ?? throw new InvalidOperationException("Jwt:Chave nao configurada.");
-        var emissor = config["Jwt:Emissor"] ?? "unite";
         var expiraEm = DateTime.UtcNow.AddHours(8);
 
         var claims = new List<Claim>
@@ -32,17 +29,45 @@ public class TokenService(IConfiguration config)
         if (nivel is not null)
             claims.Add(new Claim(ClaimNivel, nivel.Value.ToString()));
 
-        var descritor = new SecurityTokenDescriptor
+        return (Assinar(claims, Emissor, expiraEm), expiraEm);
+    }
+
+    /// <summary>
+    /// Prova de que a senha ja foi conferida, valida por 5 minutos, para a
+    /// etapa do codigo. Sai com outra audiencia ("unite-2fa"), entao o
+    /// [Authorize] da API recusa este token: ele nao abre nenhuma rota.
+    /// </summary>
+    public string GerarDesafio(Usuario usuario) =>
+        Assinar([new Claim("sub", usuario.Id.ToString())], AudienciaDesafio, DateTime.UtcNow.AddMinutes(5));
+
+    /// <summary>Id do usuario do desafio, ou nulo se for invalido ou vencido.</summary>
+    public async Task<Guid?> LerDesafioAsync(string desafio)
+    {
+        var resultado = await new JsonWebTokenHandler().ValidateTokenAsync(desafio, new TokenValidationParameters
         {
-            Issuer = emissor,
-            Audience = emissor,
+            ValidIssuer = Emissor,
+            ValidAudience = AudienciaDesafio,
+            IssuerSigningKey = Chave(),
+            ClockSkew = TimeSpan.FromSeconds(30)
+        });
+
+        return resultado.IsValid
+            && Guid.TryParse(resultado.ClaimsIdentity.FindFirst("sub")?.Value, out var id) ? id : null;
+    }
+
+    private string Emissor => config["Jwt:Emissor"] ?? "unite";
+    private string AudienciaDesafio => $"{Emissor}-2fa";
+
+    private SymmetricSecurityKey Chave() => new(Encoding.UTF8.GetBytes(
+        config["Jwt:Chave"] ?? throw new InvalidOperationException("Jwt:Chave nao configurada.")));
+
+    private string Assinar(List<Claim> claims, string audiencia, DateTime expiraEm) =>
+        new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = Emissor,
+            Audience = audiencia,
             Subject = new ClaimsIdentity(claims),
             Expires = expiraEm,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chave)),
-                SecurityAlgorithms.HmacSha256)
-        };
-
-        return (new JsonWebTokenHandler().CreateToken(descritor), expiraEm);
-    }
+            SigningCredentials = new SigningCredentials(Chave(), SecurityAlgorithms.HmacSha256)
+        });
 }

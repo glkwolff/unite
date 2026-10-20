@@ -23,7 +23,7 @@ public class PerfilController(
     public async Task<ActionResult<UsuarioDto>> Obter()
     {
         var usuario = await permissoes.UsuarioAtualAsync();
-        return usuario is null ? Unauthorized() : Ok(Mapear(usuario));
+        return usuario is null ? Unauthorized() : Ok(UsuarioDto.De(usuario));
     }
 
     [HttpPut]
@@ -37,7 +37,7 @@ public class PerfilController(
         if (!resultado.Succeeded)
             return BadRequest(new { erro = string.Join(" ", resultado.Errors.Select(e => e.Description)) });
 
-        return Ok(Mapear(usuario));
+        return Ok(UsuarioDto.De(usuario));
     }
 
     /// <summary>Recebe multipart/form-data com o campo "arquivo".</summary>
@@ -77,7 +77,7 @@ public class PerfilController(
         usuario.FotoUrl = $"/uploads/perfis/{nomeArquivo}";
         await usuarios.UpdateAsync(usuario);
 
-        return Ok(Mapear(usuario));
+        return Ok(UsuarioDto.De(usuario));
     }
 
     [HttpDelete("foto")]
@@ -93,7 +93,7 @@ public class PerfilController(
         usuario.FotoUrl = null;
         await usuarios.UpdateAsync(usuario);
 
-        return Ok(Mapear(usuario));
+        return Ok(UsuarioDto.De(usuario));
     }
 
     private static void RemoverFotoAnteriorSeExistir(string pastaFotos, Guid usuarioId)
@@ -106,12 +106,4 @@ public class PerfilController(
         }
     }
 
-    private static UsuarioDto Mapear(Usuario u) => new(
-        u.Id,
-        u.Email ?? string.Empty,
-        u.NomeCompleto,
-        u.FotoUrl,
-        u.Cargo?.Nome,
-        u.Equipe?.Nome,
-        u.Cargo?.Nivel);
 }

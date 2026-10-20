@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ChatApi.Models;
+using ChatApi.Services;
 
 namespace ChatApi.Dtos;
 
@@ -35,6 +36,43 @@ public record UsuarioDto(
     string? FotoUrl,
     string? Cargo,
     string? Equipe,
-    NivelHierarquico? Nivel);
+    NivelHierarquico? Nivel,
+    bool DoisFatoresAtivo,
+    bool DoisFatoresObrigatorio)
+{
+    /// <summary>Exige <c>Cargo</c> e <c>Equipe</c> carregados.</summary>
+    public static UsuarioDto De(Usuario u) => new(
+        u.Id,
+        u.Email ?? string.Empty,
+        u.NomeCompleto,
+        u.FotoUrl,
+        u.Cargo?.Nome,
+        u.Equipe?.Nome,
+        u.Cargo?.Nivel,
+        u.TwoFactorEnabled,
+        Permissoes.ExigeDoisFatores(u.Cargo?.Nivel));
+}
 
 public record AuthRespostaDto(string Token, DateTime ExpiraEm, UsuarioDto Usuario);
+
+/// <summary>
+/// Senha certa, mas falta o segundo fator. <c>Etapa</c> e "codigo" (ja usa o
+/// Authenticator) ou "configurar" (o nivel exige e ainda nao foi ativado).
+/// </summary>
+public record DesafioDto(string Desafio, string Etapa);
+
+public record ChaveAuthenticatorDto(string Chave, string Uri);
+
+public class DesafioRequisicaoDto
+{
+    /// <summary>Vazio quando quem chama ja esta logado (ativacao pelo perfil).</summary>
+    public string? Desafio { get; set; }
+}
+
+public class CodigoDto
+{
+    public string? Desafio { get; set; }
+
+    [Required(ErrorMessage = "Informe o codigo do aplicativo.")]
+    public string Codigo { get; set; } = string.Empty;
+}

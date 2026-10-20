@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import type { SegundaEtapa } from '../auth/AuthContext'
 import { useAuth } from '../auth/useAuth'
 import { Campo } from '../components/Campo'
+import { SegundaEtapaLogin } from '../components/SegundaEtapaLogin'
 
 export function Cadastro() {
   const { cadastrar } = useAuth()
@@ -12,19 +14,25 @@ export function Cadastro() {
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [segundaEtapa, setSegundaEtapa] = useState<SegundaEtapa | null>(null)
 
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault()
     setErro(null)
     setEnviando(true)
     try {
-      await cadastrar(nomeCompleto, email, senha)
-      navegar('/', { replace: true })
+      const etapa = await cadastrar(nomeCompleto, email, senha)
+      if (etapa) setSegundaEtapa(etapa)
+      else navegar('/', { replace: true })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Nao foi possivel cadastrar.')
     } finally {
       setEnviando(false)
     }
+  }
+
+  if (segundaEtapa) {
+    return <SegundaEtapaLogin etapa={segundaEtapa} aoVoltar={() => setSegundaEtapa(null)} />
   }
 
   return (

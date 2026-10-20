@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { api, urlArquivo, type Usuario } from '../api/client'
+import { api, urlArquivo, type ChaveAuthenticator, type Usuario } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { Campo } from '../components/Campo'
+import { CodigoAuthenticator } from '../components/CodigoAuthenticator'
 import { iniciais } from '../lib/iniciais'
 
 export function Perfil() {
@@ -196,6 +197,122 @@ export function Perfil() {
         Cargo e equipe sao atribuidos na tela de Equipes por quem administra a estrutura
         organizacional.
       </p>
+
+      <DoisFatores />
     </div>
+  )
+}
+
+function DoisFatores() {
+  const { usuario, atualizarUsuario, concluirEntrada } = useAuth()
+  const [chave, setChave] = useState<ChaveAuthenticator | null>(null)
+  const [desativando, setDesativando] = useState(false)
+  const [codigo, setCodigo] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+
+  if (!usuario) return null
+
+  async function comecarAtivacao() {
+    setErro(null)
+    try {
+      setChave(await api.post<ChaveAuthenticator>('/api/auth/2fa/configurar', {}))
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Nao foi possivel gerar o QR code.')
+    }
+  }
+
+  async function desativar(evento: FormEvent) {
+    evento.preventDefault()
+    setErro(null)
+    try {
+      atualizarUsuario(await api.post<Usuario>('/api/auth/2fa/desativar', { codigo }))
+      setDesativando(false)
+      setCodigo('')
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Nao foi possivel desativar.')
+    }
+  }
+
+  return (
+    <section className="mt-6 rounded-xl border border-unite-100 bg-white p-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-medium text-unite-900">Verificacao em duas etapas</h2>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+            usuario.doisFatoresAtivo ? 'bg-emerald-50 text-emerald-700' : 'bg-unite-50 text-slate-500'
+          }`}
+        >
+          {usuario.doisFatoresAtivo ? 'Ativa' : 'Desligada'}
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-slate-500">
+        {usuario.doisFatoresObrigatorio
+          ? 'Obrigatoria para o seu cargo: o login pede o codigo do Google Authenticator.'
+          : 'Opcional: alem da senha, o login passa a pedir o codigo do Google Authenticator.'}
+      </p>
+
+      {erro && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+
+      {!usuario.doisFatoresAtivo && !chave && (
+        <button
+          type="button"
+          onClick={comecarAtivacao}
+          className="mt-4 rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900"
+        >
+          Ativar
+        </button>
+      )}
+
+      {chave && (
+        <div className="mt-4 max-w-sm">
+          <CodigoAuthenticator
+            chave={chave}
+            aoConcluir={(resposta) => {
+              concluirEntrada(resposta)
+              setChave(null)
+            }}
+          />
+        </div>
+      )}
+
+      {usuario.doisFatoresAtivo && !usuario.doisFatoresObrigatorio && !desativando && (
+        <button
+          type="button"
+          onClick={() => setDesativando(true)}
+          className="mt-4 rounded-md border border-unite-100 px-4 py-2 text-sm text-slate-600 transition hover:bg-unite-50"
+        >
+          Desativar
+        </button>
+      )}
+
+      {desativando && (
+        <form onSubmit={desativar} className="mt-4 max-w-sm">
+          <Campo
+            rotulo="Codigo atual do aplicativo"
+            required
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={7}
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="rounded-md bg-unite-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-unite-900"
+            >
+              Desativar
+            </button>
+            <button
+              type="button"
+              onClick={() => setDesativando(false)}
+              className="rounded-md border border-unite-100 px-4 py-2 text-sm text-slate-600 transition hover:bg-unite-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   )
 }
