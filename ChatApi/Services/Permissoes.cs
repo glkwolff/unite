@@ -51,11 +51,7 @@ public class Permissoes(AppDbContext db, IHttpContextAccessor http)
         return _usuario;
     }
 
-    /// <summary>
-    /// O nivel vem do banco, nao do claim "nivel" do token. Se um diretor
-    /// rebaixa alguem, a perda de poder vale na proxima requisicao — e nao
-    /// daqui a 8 horas, quando o token da vitima expirar.
-    /// </summary>
+    /// <summary>Lido do banco a cada requisicao: promocao ou rebaixamento vale na hora.</summary>
     public async Task<NivelHierarquico?> NivelAsync() => (await UsuarioAtualAsync())?.Cargo?.Nivel;
 
     /// <summary>Cargos sao o vocabulario da hierarquia: so o diretor mexe.</summary>

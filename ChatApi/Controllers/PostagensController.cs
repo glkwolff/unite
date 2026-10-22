@@ -57,15 +57,6 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         return Ok(new PaginaFeedDto(await MontarAsync(pagina), temMais));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<PostagemDto>> Obter(Guid id)
-    {
-        var postagem = await BuscarComAutorAsync(id);
-        if (postagem is null) return NotFound(new { erro = "Postagem nao encontrada." });
-
-        return Ok((await MontarAsync([postagem]))[0]);
-    }
-
     [HttpPost]
     public async Task<ActionResult<PostagemDto>> Publicar(PostagemEntradaDto dto)
     {
@@ -96,7 +87,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         db.Postagens.Add(postagem);
         await db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(Obter), new { id = postagem.Id }, (await MontarAsync([postagem]))[0]);
+        return Ok((await MontarAsync([postagem]))[0]);
     }
 
     [HttpDelete("{id:guid}")]

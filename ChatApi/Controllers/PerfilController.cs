@@ -19,13 +19,6 @@ public class PerfilController(
     private static readonly string[] ExtensoesPermitidas = [".jpg", ".jpeg", ".png", ".webp"];
     private const long TamanhoMaximoBytes = 5 * 1024 * 1024; // 5 MB
 
-    [HttpGet]
-    public async Task<ActionResult<UsuarioDto>> Obter()
-    {
-        var usuario = await permissoes.UsuarioAtualAsync();
-        return usuario is null ? Unauthorized() : Ok(UsuarioDto.De(usuario));
-    }
-
     [HttpPut]
     public async Task<ActionResult<UsuarioDto>> Atualizar(AtualizarPerfilDto dto)
     {

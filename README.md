@@ -131,7 +131,6 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | POST | `/api/auth/2fa/configurar` | autenticado | Gera a chave e o QR code do Authenticator |
 | POST | `/api/auth/2fa/ativar` | autenticado | Confere o 1º código e liga o 2FA |
 | POST | `/api/auth/2fa/desativar` | autenticado, nível que não exige | Desliga o 2FA (pede um código válido) |
-| GET | `/api/perfil` | autenticado | Dados do próprio perfil |
 | PUT | `/api/perfil` | autenticado | Atualiza o nome completo |
 | POST | `/api/perfil/foto` | autenticado | Upload da foto (multipart, campo `arquivo`) |
 | DELETE | `/api/perfil/foto` | autenticado | Remove a foto atual |
@@ -153,7 +152,6 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | POST | `/api/salas/{id}/mensagens` | participante | Envia a mensagem e avisa o hub |
 | WS | `/chat` | autenticado³ | Hub SignalR: emite `MensagemRecebida` |
 | GET | `/api/postagens?antes=&limite=` | autenticado | Feed, do mais recente ao mais antigo⁵ |
-| GET | `/api/postagens/{id}` | autenticado | Uma postagem |
 | POST | `/api/postagens` | supervisor⁶ | Publica um aviso |
 | DELETE | `/api/postagens/{id}` | autor ou gerente | Remove um aviso |
 | POST | `/api/postagens/{id}/ciente` | autenticado, menos o autor | Marca "Ciente" (sem desfazer) |

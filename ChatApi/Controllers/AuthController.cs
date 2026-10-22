@@ -183,7 +183,7 @@ public class AuthController(
     /// <summary>Exige Cargo e Equipe carregados.</summary>
     private AuthRespostaDto MontarResposta(Usuario usuario)
     {
-        var (token, expiraEm) = tokens.Gerar(usuario, usuario.Cargo?.Nivel);
+        var (token, expiraEm) = tokens.Gerar(usuario);
         return new AuthRespostaDto(token, expiraEm, UsuarioDto.De(usuario));
     }
 }

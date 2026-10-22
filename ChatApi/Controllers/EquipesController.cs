@@ -25,17 +25,6 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         return Ok(equipes.Select(Mapear));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<EquipeDto>> Obter(Guid id)
-    {
-        var equipe = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        return equipe is null ? NotFound(new { erro = "Equipe nao encontrada." }) : Ok(Mapear(equipe));
-    }
-
     /// <summary>Monta o organograma inteiro em uma chamada so — evita o front
     /// ter que cruzar /equipes com /cargos para desenhar a arvore.</summary>
     [HttpGet("arvore")]
