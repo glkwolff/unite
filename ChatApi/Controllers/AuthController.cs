@@ -134,8 +134,7 @@ public class AuthController(
         if (!usuario.TwoFactorEnabled)
             return Conflict(new { erro = "A verificacao em duas etapas ja esta desligada." });
         if (Permissoes.ExigeDoisFatores(usuario.Cargo?.Nivel))
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { erro = "Seu cargo exige a verificacao em duas etapas." });
+            return Forbid();
 
         if (await ConferirCodigoAsync(usuario, dto.Codigo) is string erro)
             return Unauthorized(new { erro });

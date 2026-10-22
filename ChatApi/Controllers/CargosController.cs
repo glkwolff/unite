@@ -20,7 +20,7 @@ public class CargosController(AppDbContext db, Permissoes permissoes) : Controll
     {
         var cargos = await db.Cargos
             .OrderBy(c => c.Nivel).ThenBy(c => c.Nome)
-            .Select(c => new CargoDto(c.Id, c.Nome, c.Nivel, c.Usuarios.Count))
+            .Select(c => CargoDto.De(c, c.Usuarios.Count))
             .ToListAsync();
 
         return Ok(cargos);
@@ -36,7 +36,7 @@ public class CargosController(AppDbContext db, Permissoes permissoes) : Controll
         db.Cargos.Add(cargo);
         await db.SaveChangesAsync();
 
-        return Ok(new CargoDto(cargo.Id, cargo.Nome, cargo.Nivel, 0));
+        return Ok(CargoDto.De(cargo, 0));
     }
 
     [HttpPut("{id:guid}")]
@@ -53,7 +53,7 @@ public class CargosController(AppDbContext db, Permissoes permissoes) : Controll
         await db.SaveChangesAsync();
 
         var total = await db.Users.CountAsync(u => u.CargoId == id);
-        return Ok(new CargoDto(cargo.Id, cargo.Nome, cargo.Nivel, total));
+        return Ok(CargoDto.De(cargo, total));
     }
 
     [HttpDelete("{id:guid}")]

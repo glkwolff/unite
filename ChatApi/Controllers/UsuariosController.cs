@@ -25,7 +25,7 @@ public class UsuariosController(AppDbContext db, Permissoes permissoes) : Contro
             .OrderBy(u => u.NomeCompleto)
             .ToListAsync();
 
-        return Ok(usuarios.Select(MapeamentoOrganizacao.ParaPessoa));
+        return Ok(usuarios.Select(PessoaDto.De));
     }
 
     /// <summary>Atribui (ou remove, com CargoId nulo) o cargo de uma pessoa.
@@ -59,7 +59,7 @@ public class UsuariosController(AppDbContext db, Permissoes permissoes) : Contro
         alvo.Cargo = novoCargo;
         await db.SaveChangesAsync();
 
-        return Ok(MapeamentoOrganizacao.ParaPessoa(alvo));
+        return Ok(PessoaDto.De(alvo));
     }
 
     /// <summary>

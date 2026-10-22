@@ -93,7 +93,6 @@ ChatApi/
 │                                       SalaUsuario, Mensagem, Postagem, Ciencia
 ├── Services/TokenService.cs           emissão do JWT
 ├── Services/Permissoes.cs             quem pode o quê (RF11)
-├── Services/MapeamentoOrganizacao.cs  Usuario -> MembroResumoDto
 ├── Services/ProvedorIdUsuario.cs      claim "sub" como id do usuario no SignalR
 ├── wwwroot/uploads/perfis/            fotos de perfil (fora do git)
 └── Migrations/
@@ -282,10 +281,9 @@ Apagar a equipe apaga o canal e as mensagens junto (`Cascade` no `AppDbContext`)
 ### Histórico paginado
 
 `GET /api/salas/{id}/mensagens` aceita `?antesDe=<data>` e devolve o pedaço
-imediatamente anterior ao cursor, apoiado no índice `(SalaId, EnviadaEm)` que já existia.
-A resposta continua sendo um array puro: "ainda tem mais" se descobre pela contagem —
-veio a página cheia, pode haver mais. Um envelope `{ itens, temMais }` mudaria o contrato
-para dar um sinal que o tamanho da resposta já dá.
+imediatamente anterior ao cursor, apoiado no índice `(SalaId, EnviadaEm)`. A resposta é
+`{ itens, temMais }`, igual à do feed: o servidor busca um item a mais que o limite só para
+saber se existe página anterior.
 
 No front, quem altera a lista de mensagens declara para onde o histórico deve rolar
 (`modoScroll`): mensagem nova entra no fim e puxa a leitura para baixo; página antiga

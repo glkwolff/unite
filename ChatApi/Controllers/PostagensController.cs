@@ -63,13 +63,8 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         if (!await permissoes.PodePublicarAsync())
             return Forbid();
 
-        // Conferido separado para devolver o motivo: o supervisor pode publicar,
-        // so nao pode marcar como institucional.
         if (dto.Institucional && !await permissoes.PodePublicarInstitucionalAsync())
-            return StatusCode(StatusCodes.Status403Forbidden, new
-            {
-                erro = "Somente gerente ou diretor publicam avisos institucionais."
-            });
+            return Forbid();
 
         var autor = await permissoes.UsuarioAtualAsync();
         if (autor is null) return Unauthorized();
@@ -167,7 +162,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         {
             if (await permissoes.PodeVerLeitorAsync(c.Usuario.Cargo?.Nivel))
                 visiveis.Add(new CienciaDto(
-                    MapeamentoOrganizacao.ParaResumo(c.Usuario),
+                    MembroResumoDto.De(c.Usuario),
                     c.ConfirmadaEm));
         }
 
@@ -225,7 +220,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
                 p.Conteudo,
                 p.Institucional,
                 p.PublicadaEm,
-                MapeamentoOrganizacao.ParaResumo(p.Autor),
+                MembroResumoDto.De(p.Autor),
                 await permissoes.PodeRemoverPostagemAsync(p),
                 minha is null ? null : minha.ConfirmadaEm,
                 permissoes.PodeMarcarCiente(p),

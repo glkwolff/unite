@@ -16,13 +16,8 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     [HttpGet]
     public async Task<ActionResult<IEnumerable<EquipeDto>>> Listar()
     {
-        var equipes = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .OrderBy(e => e.Nome)
-            .ToListAsync();
-
-        return Ok(equipes.Select(Mapear));
+        var equipes = await EquipesCompletas().OrderBy(e => e.Nome).ToListAsync();
+        return Ok(equipes.Select(EquipeDto.De));
     }
 
     /// <summary>Monta o organograma inteiro em uma chamada so — evita o front
@@ -31,23 +26,15 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     public async Task<ActionResult<ArvoreOrganizacionalDto>> Arvore()
     {
         var usuarios = await db.Users.Include(u => u.Cargo).ToListAsync();
-        var equipes = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .OrderBy(e => e.Nome)
-            .ToListAsync();
+        var equipes = await EquipesCompletas().OrderBy(e => e.Nome).ToListAsync();
 
-        // Diretor e gerente ficam no topo, fora das equipes. Antes so o
-        // gerente era tratado assim e o diretor caia no balde "sem equipe".
-        var lideranca = usuarios
-            .Where(EstaNaLideranca)
-            .Select(MapeamentoOrganizacao.ParaResumo);
-
+        // Diretor e gerente ficam no topo, fora das equipes.
+        var lideranca = usuarios.Where(EstaNaLideranca).Select(MembroResumoDto.De);
         var semEquipe = usuarios
             .Where(u => u.EquipeId is null && !EstaNaLideranca(u))
-            .Select(MapeamentoOrganizacao.ParaResumo);
+            .Select(MembroResumoDto.De);
 
-        return Ok(new ArvoreOrganizacionalDto(lideranca, equipes.Select(Mapear), semEquipe));
+        return Ok(new ArvoreOrganizacionalDto(lideranca, equipes.Select(EquipeDto.De), semEquipe));
     }
 
     [HttpPost]
@@ -138,19 +125,11 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     /// <summary>Diretoria e gerencia nao pertencem a uma equipe: lideram todas.</summary>
     private static bool EstaNaLideranca(Usuario u) => u.Cargo?.Nivel <= NivelHierarquico.Gerente;
 
-    private async Task<EquipeDto> ObterMapeadaAsync(Guid id)
-    {
-        var equipe = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .FirstAsync(e => e.Id == id);
+    /// <summary>Equipe com supervisor e membros, cada um com o cargo: o que o EquipeDto precisa.</summary>
+    private IQueryable<Equipe> EquipesCompletas() => db.Equipes
+        .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
+        .Include(e => e.Membros).ThenInclude(m => m.Cargo);
 
-        return Mapear(equipe);
-    }
-
-    private static EquipeDto Mapear(Equipe e) => new(
-        e.Id,
-        e.Nome,
-        e.Supervisor is null ? null : MapeamentoOrganizacao.ParaResumo(e.Supervisor),
-        e.Membros.Select(MapeamentoOrganizacao.ParaResumo));
+    private async Task<EquipeDto> ObterMapeadaAsync(Guid id) =>
+        EquipeDto.De(await EquipesCompletas().FirstAsync(e => e.Id == id));
 }
