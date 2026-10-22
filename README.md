@@ -15,10 +15,12 @@ Trabalho da disciplina de Planejamento de Projeto de Sistema Visual — defesa e
 | Camada | Tecnologia |
 | --- | --- |
 | Backend | .NET 8 (LTS) · ASP.NET Core Web API · SignalR |
-| Dados | SQLite em modo WAL · Entity Framework Core 10 |
+| Dados | SQLite em modo WAL · Entity Framework Core 8 |
 | Autenticação | ASP.NET Core Identity · JWT · 2FA com Google Authenticator (TOTP) |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 |
 | Testes | xUnit · WebApplicationFactory *(a partir de 05/11)* |
+
+.NET 8 e não o 10 previsto no escopo: é a versão instalada nos computadores da faculdade.
 
 Roda em **instância única**: sem Redis, sem RabbitMQ, sem Docker. O acesso a dados está
 atrás do EF Core, então trocar o SQLite por PostgreSQL é mudar o provider.
@@ -211,6 +213,10 @@ O nível é lido **do banco**, não do claim `nivel` do JWT — assim uma promo�
 rebaixamento valem na requisição seguinte, e não só no próximo login. O front tem um
 espelho dessas regras em `chat-web/src/lib/permissoes.ts`, usado apenas para não
 desenhar botão que o servidor vai recusar.
+
+**Quatro níveis, não três:** o escopo previa Gerente, Supervisor e Funcionário. A equipe
+acrescentou o **Diretor** acima do Gerente para ter um nível com acesso total — é o único que
+mexe nos cargos e atribui qualquer nível.
 
 **Primeiro acesso:** numa base vazia não existe diretor, e sem diretor ninguém atribui
 cargo. Por isso o startup cria os quatro cargos padrão e a primeira conta registrada
