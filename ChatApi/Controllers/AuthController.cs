@@ -49,9 +49,10 @@ public class AuthController(
             await db.SaveChangesAsync();
         }
 
-        return await ConcluirEntradaAsync(usuario);
+        return NoContent();
     }
 
+    /// <summary>Senha e, quando o 2FA vale para a pessoa, o codigo do Authenticator.</summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
@@ -59,10 +60,32 @@ public class AuthController(
         if (usuario is null || !await usuarios.CheckPasswordAsync(usuario, dto.Senha))
             return Unauthorized(new { erro = "E-mail ou senha invalidos." });
 
-        return await ConcluirEntradaAsync(usuario);
+        await db.Entry(usuario).Reference(u => u.Cargo).LoadAsync();
+        await db.Entry(usuario).Reference(u => u.Equipe).LoadAsync();
+
+        var precisaCodigo = usuario.TwoFactorEnabled || Permissoes.ExigeDoisFatores(usuario.Cargo?.Nivel);
+        if (!precisaCodigo)
+            return Ok(MontarResposta(usuario));
+
+        if (string.IsNullOrWhiteSpace(dto.Codigo))
+        {
+            if (usuario.TwoFactorEnabled)
+                return Ok(new SegundaEtapaDto("codigo", null, null));
+
+            // Cargo exige e ainda nao configurou: devolve o QR code
+            var (chave, uri) = await ChaveAsync(usuario);
+            return Ok(new SegundaEtapaDto("configurar", chave, uri));
+        }
+
+        if (await ConferirCodigoAsync(usuario, dto.Codigo) is string erro)
+            return Unauthorized(new { erro });
+
+        if (!usuario.TwoFactorEnabled)
+            await usuarios.SetTwoFactorEnabledAsync(usuario, true);
+
+        return Ok(MontarResposta(usuario));
     }
 
-    /// <summary>Endpoint protegido: valida o token e devolve o usuario logado.</summary>
     [Authorize]
     [HttpGet("eu")]
     public async Task<ActionResult<UsuarioDto>> Eu()
@@ -71,39 +94,27 @@ public class AuthController(
         return usuario is null ? Unauthorized() : Ok(UsuarioDto.De(usuario));
     }
 
-    // ------------------------------------------------------------------- 2fa
-    //
-    // login ──senha ok──> 2FA ativo?          ── sim ──> desafio "codigo"     ──> /2fa/verificar
-    //                     nivel exige 2FA?    ── sim ──> desafio "configurar" ──> /2fa/configurar + /2fa/ativar
-    //                     senao               ────────> JWT
-    //
-    // Pelo perfil, quem ja esta logado ativa sem desafio: /2fa/configurar e
-    // /2fa/ativar aceitam o JWT no lugar dele.
+    // ---- 2fa pelo perfil (quem ja esta logado)
 
-    /// <summary>Gera uma chave nova para o Authenticator (texto e URI do QR code).</summary>
+    [Authorize]
     [HttpPost("2fa/configurar")]
-    public async Task<ActionResult<ChaveAuthenticatorDto>> Configurar(DesafioRequisicaoDto dto)
+    public async Task<ActionResult<ChaveAuthenticatorDto>> Configurar()
     {
-        var usuario = await DesafiadoOuLogadoAsync(dto.Desafio);
-        if (usuario is null)
-            return Unauthorized(new { erro = "Sessao expirada. Entre de novo." });
+        var usuario = await permissoes.UsuarioAtualAsync();
+        if (usuario is null) return Unauthorized();
         if (usuario.TwoFactorEnabled)
             return Conflict(new { erro = "A verificacao em duas etapas ja esta ativa." });
 
-        await usuarios.ResetAuthenticatorKeyAsync(usuario);
-        var chave = (await usuarios.GetAuthenticatorKeyAsync(usuario))!;
-        var uri = $"otpauth://totp/Unite:{Uri.EscapeDataString(usuario.Email!)}?secret={chave}&issuer=Unite&digits=6";
-
+        var (chave, uri) = await ChaveAsync(usuario);
         return Ok(new ChaveAuthenticatorDto(chave, uri));
     }
 
-    /// <summary>Confirma o primeiro codigo e liga o 2FA. Devolve o JWT.</summary>
+    [Authorize]
     [HttpPost("2fa/ativar")]
-    public async Task<ActionResult<AuthRespostaDto>> Ativar(CodigoDto dto)
+    public async Task<ActionResult<UsuarioDto>> Ativar(CodigoDto dto)
     {
-        var usuario = await DesafiadoOuLogadoAsync(dto.Desafio);
-        if (usuario is null)
-            return Unauthorized(new { erro = "Sessao expirada. Entre de novo." });
+        var usuario = await permissoes.UsuarioAtualAsync();
+        if (usuario is null) return Unauthorized();
         if (usuario.TwoFactorEnabled)
             return Conflict(new { erro = "A verificacao em duas etapas ja esta ativa." });
 
@@ -111,25 +122,9 @@ public class AuthController(
             return Unauthorized(new { erro });
 
         await usuarios.SetTwoFactorEnabledAsync(usuario, true);
-        return Ok(await MontarRespostaAsync(usuario));
+        return Ok(UsuarioDto.De(usuario));
     }
 
-    /// <summary>Segunda etapa do login de quem ja usa o Authenticator.</summary>
-    [HttpPost("2fa/verificar")]
-    public async Task<ActionResult<AuthRespostaDto>> Verificar(CodigoDto dto)
-    {
-        var id = dto.Desafio is null ? null : await tokens.LerDesafioAsync(dto.Desafio);
-        var usuario = id is null ? null : await usuarios.FindByIdAsync(id.Value.ToString());
-        if (usuario is null || !usuario.TwoFactorEnabled)
-            return Unauthorized(new { erro = "Sessao expirada. Entre de novo." });
-
-        if (await ConferirCodigoAsync(usuario, dto.Codigo) is string erro)
-            return Unauthorized(new { erro });
-
-        return Ok(await MontarRespostaAsync(usuario));
-    }
-
-    /// <summary>Desliga o 2FA. Pede um codigo valido e so vale para quem o nivel nao obriga.</summary>
     [Authorize]
     [HttpPost("2fa/desativar")]
     public async Task<ActionResult<UsuarioDto>> Desativar(CodigoDto dto)
@@ -150,35 +145,23 @@ public class AuthController(
         return Ok(UsuarioDto.De(usuario));
     }
 
-    /// <summary>Senha conferida: entrega o JWT ou, se falta o segundo fator, o desafio.</summary>
-    private async Task<IActionResult> ConcluirEntradaAsync(Usuario usuario)
+    // ---- apoio
+
+    /// <summary>So gera chave se ainda nao existe: o QR code ja lido continua valendo.</summary>
+    private async Task<(string Chave, string Uri)> ChaveAsync(Usuario usuario)
     {
-        if (usuario.TwoFactorEnabled)
-            return Ok(new DesafioDto(tokens.GerarDesafio(usuario), "codigo"));
+        var chave = await usuarios.GetAuthenticatorKeyAsync(usuario);
+        if (chave is null)
+        {
+            await usuarios.ResetAuthenticatorKeyAsync(usuario);
+            chave = (await usuarios.GetAuthenticatorKeyAsync(usuario))!;
+        }
 
-        var nivel = await db.Cargos
-            .Where(c => c.Id == usuario.CargoId)
-            .Select(c => (NivelHierarquico?)c.Nivel)
-            .FirstOrDefaultAsync();
-
-        if (Permissoes.ExigeDoisFatores(nivel))
-            return Ok(new DesafioDto(tokens.GerarDesafio(usuario), "configurar"));
-
-        return Ok(await MontarRespostaAsync(usuario));
+        var uri = $"otpauth://totp/Unite:{Uri.EscapeDataString(usuario.Email!)}?secret={chave}&issuer=Unite&digits=6";
+        return (chave, uri);
     }
 
-    private async Task<Usuario?> DesafiadoOuLogadoAsync(string? desafio)
-    {
-        if (desafio is null) return await permissoes.UsuarioAtualAsync();
-
-        var id = await tokens.LerDesafioAsync(desafio);
-        return id is null ? null : await usuarios.FindByIdAsync(id.Value.ToString());
-    }
-
-    /// <summary>
-    /// Nulo se o codigo bate. Cinco erros seguidos travam a conta por 5 minutos
-    /// (lockout padrao do Identity): sao so 1 milhao de codigos possiveis.
-    /// </summary>
+    /// <summary>Nulo se o codigo bate. 5 erros seguidos travam a conta por 5 min (lockout do Identity).</summary>
     private async Task<string?> ConferirCodigoAsync(Usuario usuario, string codigo)
     {
         if (await usuarios.IsLockedOutAsync(usuario))
@@ -197,15 +180,10 @@ public class AuthController(
         return null;
     }
 
-    private async Task<AuthRespostaDto> MontarRespostaAsync(Usuario usuario)
+    /// <summary>Exige Cargo e Equipe carregados.</summary>
+    private AuthRespostaDto MontarResposta(Usuario usuario)
     {
-        // Recarrega com cargo e equipe para o token carregar o nivel hierarquico.
-        var completo = await db.Users
-            .Include(u => u.Cargo)
-            .Include(u => u.Equipe)
-            .FirstAsync(u => u.Id == usuario.Id);
-
-        var (token, expiraEm) = tokens.Gerar(completo, completo.Cargo?.Nivel);
-        return new AuthRespostaDto(token, expiraEm, UsuarioDto.De(completo));
+        var (token, expiraEm) = tokens.Gerar(usuario, usuario.Cargo?.Nivel);
+        return new AuthRespostaDto(token, expiraEm, UsuarioDto.De(usuario));
     }
 }

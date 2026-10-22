@@ -204,7 +204,7 @@ export function Perfil() {
 }
 
 function DoisFatores() {
-  const { usuario, atualizarUsuario, concluirEntrada } = useAuth()
+  const { usuario, atualizarUsuario } = useAuth()
   const [chave, setChave] = useState<ChaveAuthenticator | null>(null)
   const [desativando, setDesativando] = useState(false)
   const [codigo, setCodigo] = useState('')
@@ -267,8 +267,8 @@ function DoisFatores() {
         <div className="mt-4 max-w-sm">
           <CodigoAuthenticator
             chave={chave}
-            aoConcluir={(resposta) => {
-              concluirEntrada(resposta)
+            aoEnviar={async (codigo) => {
+              atualizarUsuario(await api.post<Usuario>('/api/auth/2fa/ativar', { codigo }))
               setChave(null)
             }}
           />
@@ -292,6 +292,7 @@ function DoisFatores() {
             required
             inputMode="numeric"
             autoComplete="one-time-code"
+            pattern="[0-9 ]{6,7}"
             maxLength={7}
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}

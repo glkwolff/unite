@@ -27,6 +27,9 @@ public class LoginDto
 
     [Required(ErrorMessage = "Informe a senha.")]
     public string Senha { get; set; } = string.Empty;
+
+    /// <summary>Codigo do Authenticator, mandado so na segunda tentativa.</summary>
+    public string? Codigo { get; set; }
 }
 
 public record UsuarioDto(
@@ -55,24 +58,13 @@ public record UsuarioDto(
 
 public record AuthRespostaDto(string Token, DateTime ExpiraEm, UsuarioDto Usuario);
 
-/// <summary>
-/// Senha certa, mas falta o segundo fator. <c>Etapa</c> e "codigo" (ja usa o
-/// Authenticator) ou "configurar" (o nivel exige e ainda nao foi ativado).
-/// </summary>
-public record DesafioDto(string Desafio, string Etapa);
+/// <summary>Senha certa, falta o codigo. Etapa "codigo" ou "configurar" (vem com a chave do QR code).</summary>
+public record SegundaEtapaDto(string Etapa, string? Chave, string? Uri);
 
 public record ChaveAuthenticatorDto(string Chave, string Uri);
 
-public class DesafioRequisicaoDto
-{
-    /// <summary>Vazio quando quem chama ja esta logado (ativacao pelo perfil).</summary>
-    public string? Desafio { get; set; }
-}
-
 public class CodigoDto
 {
-    public string? Desafio { get; set; }
-
     [Required(ErrorMessage = "Informe o codigo do aplicativo.")]
     public string Codigo { get; set; } = string.Empty;
 }

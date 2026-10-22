@@ -21,10 +21,11 @@ export interface AuthResposta {
   usuario: Usuario;
 }
 
-/** Senha certa, falta o codigo: "codigo" ja usa o Authenticator, "configurar" ainda vai cadastrar. */
-export interface Desafio {
-  desafio: string;
+/** Senha certa, falta o codigo. Em "configurar" vem a chave do QR code. */
+export interface SegundaEtapa {
   etapa: "codigo" | "configurar";
+  chave: string | null;
+  uri: string | null;
 }
 
 export interface ChaveAuthenticator {

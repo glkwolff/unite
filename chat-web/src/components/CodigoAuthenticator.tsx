@@ -1,18 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import QRCode from 'qrcode'
-import { api, type AuthResposta, type ChaveAuthenticator } from '../api/client'
+import type { ChaveAuthenticator } from '../api/client'
 import { Campo } from './Campo'
 
 interface Props {
-  /** Ausente quando quem ativa ja esta logado (pelo perfil). */
-  desafio?: string
-  /** Preenchida quando o 2FA esta sendo cadastrado: mostra o QR code e ativa. */
+  /** Preenchida quando o 2FA esta sendo cadastrado: mostra o QR code. */
   chave: ChaveAuthenticator | null
-  aoConcluir: (resposta: AuthResposta) => void
+  /** Manda o codigo para a API; se der erro, a mensagem aparece aqui. */
+  aoEnviar: (codigo: string) => Promise<void>
 }
 
 /** Pede o codigo de 6 digitos do Google Authenticator; antes, o QR code se for o cadastro. */
-export function CodigoAuthenticator({ desafio, chave, aoConcluir }: Props) {
+export function CodigoAuthenticator({ chave, aoEnviar }: Props) {
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [codigo, setCodigo] = useState('')
   const [erro, setErro] = useState<string | null>(null)
@@ -29,13 +28,12 @@ export function CodigoAuthenticator({ desafio, chave, aoConcluir }: Props) {
     }
   }, [chave])
 
-  async function aoEnviar(evento: FormEvent) {
+  async function submeter(evento: FormEvent) {
     evento.preventDefault()
     setErro(null)
     setEnviando(true)
     try {
-      const rota = chave ? '/api/auth/2fa/ativar' : '/api/auth/2fa/verificar'
-      aoConcluir(await api.post<AuthResposta>(rota, { desafio, codigo }))
+      await aoEnviar(codigo)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Nao foi possivel conferir o codigo.')
       setCodigo('')
@@ -45,7 +43,7 @@ export function CodigoAuthenticator({ desafio, chave, aoConcluir }: Props) {
   }
 
   return (
-    <form onSubmit={aoEnviar}>
+    <form onSubmit={submeter}>
       {chave && (
         <div className="mb-5 text-sm text-slate-600">
           <p>

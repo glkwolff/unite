@@ -1,26 +1,12 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react'
-import {
-  api,
-  token,
-  type AuthResposta,
-  type ChaveAuthenticator,
-  type Desafio,
-  type Usuario,
-} from '../api/client'
-
-/** O que falta depois da senha. `chave` vem preenchida quando o 2FA ainda vai ser cadastrado. */
-export interface SegundaEtapa {
-  desafio: string
-  chave: ChaveAuthenticator | null
-}
+import { api, token, type AuthResposta, type SegundaEtapa, type Usuario } from '../api/client'
 
 interface AuthContexto {
   usuario: Usuario | null
   carregando: boolean
   /** Nulo quando ja entrou; senao, a etapa do codigo que falta. */
-  entrar: (email: string, senha: string) => Promise<SegundaEtapa | null>
-  cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<SegundaEtapa | null>
-  concluirEntrada: (resposta: AuthResposta) => void
+  entrar: (email: string, senha: string, codigo?: string) => Promise<SegundaEtapa | null>
+  cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<void>
   sair: () => void
   /** Atualiza o usuario em memoria (ex.: apos editar perfil ou trocar foto),
    * sem precisar relogar para o header refletir a mudanca. */
@@ -48,34 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setCarregando(false))
   }, [])
 
-  function aplicar(resposta: AuthResposta) {
+  async function entrar(email: string, senha: string, codigo?: string) {
+    const resposta = await api.post<AuthResposta | SegundaEtapa>('/api/auth/login', {
+      email,
+      senha,
+      codigo,
+    })
+    if ('etapa' in resposta) return resposta
+
     token.gravar(resposta.token)
     setUsuario(resposta.usuario)
-  }
-
-  async function seguir(resposta: AuthResposta | Desafio): Promise<SegundaEtapa | null> {
-    if (!('desafio' in resposta)) {
-      aplicar(resposta)
-      return null
-    }
-
-    const chave =
-      resposta.etapa === 'configurar'
-        ? await api.post<ChaveAuthenticator>('/api/auth/2fa/configurar', {
-            desafio: resposta.desafio,
-          })
-        : null
-    return { desafio: resposta.desafio, chave }
-  }
-
-  async function entrar(email: string, senha: string) {
-    return seguir(await api.post<AuthResposta | Desafio>('/api/auth/login', { email, senha }))
+    return null
   }
 
   async function cadastrar(nomeCompleto: string, email: string, senha: string) {
-    return seguir(
-      await api.post<AuthResposta | Desafio>('/api/auth/registrar', { nomeCompleto, email, senha }),
-    )
+    await api.post('/api/auth/registrar', { nomeCompleto, email, senha })
   }
 
   function sair() {
@@ -85,15 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <ContextoAuth.Provider
-      value={{
-        usuario,
-        carregando,
-        entrar,
-        cadastrar,
-        concluirEntrada: aplicar,
-        sair,
-        atualizarUsuario: setUsuario,
-      }}
+      value={{ usuario, carregando, entrar, cadastrar, sair, atualizarUsuario: setUsuario }}
     >
       {children}
     </ContextoAuth.Provider>
