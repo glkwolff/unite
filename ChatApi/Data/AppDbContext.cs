@@ -1,5 +1,4 @@
 using ChatApi.Models;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -7,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChatApi.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options)
-    : IdentityDbContext<Usuario, IdentityRole<Guid>, Guid>(options)
+    : IdentityUserContext<Usuario, Guid>(options)
 {
     public DbSet<Cargo> Cargos => Set<Cargo>();
     public DbSet<Equipe> Equipes => Set<Equipe>();
@@ -48,9 +47,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             .HasOne(t => t.Supervisor).WithMany()
             .HasForeignKey(t => t.SupervisorId).OnDelete(DeleteBehavior.Restrict);
 
+        // Apagar a equipe apaga o canal (e, pelo cascade da Sala, as mensagens).
         b.Entity<Sala>()
             .HasOne(s => s.Equipe).WithMany()
-            .HasForeignKey(s => s.EquipeId).OnDelete(DeleteBehavior.SetNull);
+            .HasForeignKey(s => s.EquipeId).OnDelete(DeleteBehavior.Cascade);
 
         b.Entity<SalaUsuario>(e =>
         {
@@ -87,14 +87,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
         b.Entity<Ciencia>(e =>
         {
+            // Um "Ciente" por usuario por postagem: o par e a chave.
+            e.HasKey(c => new { c.PostagemId, c.UsuarioId });
+
             e.HasOne(c => c.Postagem).WithMany(p => p.Ciencias)
                 .HasForeignKey(c => c.PostagemId).OnDelete(DeleteBehavior.Cascade);
 
             e.HasOne(c => c.Usuario).WithMany()
                 .HasForeignKey(c => c.UsuarioId).OnDelete(DeleteBehavior.Cascade);
-
-            // Um "Ciente" por usuario por postagem.
-            e.HasIndex(c => new { c.PostagemId, c.UsuarioId }).IsUnique();
         });
     }
 }

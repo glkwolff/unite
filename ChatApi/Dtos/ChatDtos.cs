@@ -12,15 +12,8 @@ public class AbrirPrivadaDto
 }
 
 /// <summary>
-/// Uma conversa na lista lateral, servindo os dois tipos de sala. O
-/// <see cref="Titulo"/> e montado a cada resposta — nome do outro na privada,
-/// nome da equipe no canal — porque guardado em Sala.Nome ficaria velho assim
-/// que alguem editasse o perfil ou a equipe fosse renomeada.
-///
-/// <see cref="Outro"/> so existe na privada, onde sustenta a foto e o cargo no
-/// cabecalho: canal de equipe nao tem "o outro". Nao ha contagem de
-/// participantes porque ela custaria uma consulta por canal na listagem para
-/// alimentar um subtitulo que o <see cref="Tipo"/> ja permite escrever.
+/// Uma conversa na lista lateral. Titulo = nome do outro (privada) ou da equipe (canal),
+/// montado a cada resposta. Outro so existe na privada.
 /// </summary>
 public record SalaResumoDto(
     Guid Id,

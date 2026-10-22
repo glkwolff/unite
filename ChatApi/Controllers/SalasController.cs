@@ -34,10 +34,7 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
             .Include(s => s.Participantes).ThenInclude(p => p.Usuario).ThenInclude(u => u!.Cargo)
             .ToListAsync();
 
-        // Duas consultas em vez de um OR num Where so: "minha sala" e uma regra
-        // diferente em cada tipo, e juntar as duas num OR com EquipeId nulo
-        // casaria a minha ausencia de equipe com o canal orfao de uma equipe
-        // apagada. Sem equipe simplesmente nao ha canal para listar.
+        // Sem equipe nao ha canal para listar.
         var canais = minhaEquipe is Guid equipeId
             ? await db.Salas
                 .Where(s => s.Tipo == TipoSala.Grupo && s.EquipeId == equipeId)
@@ -266,11 +263,7 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
                 .ToListAsync();
         }
 
-        // O Guid e aberto ANTES da consulta de proposito. O EF Core compensa a
-        // semantica de nulo do SQL, entao comparar EquipeId com um parametro
-        // nulo viraria "os dois IS NULL" e daria o canal orfao (equipe apagada)
-        // para toda a lideranca, que nao tem equipe. Canal sem equipe nao tem
-        // participante nenhum, e por isso fica fechado para todos.
+        // Canal: participante e quem esta na equipe agora.
         if (sala.EquipeId is not Guid equipeId) return [];
 
         return await db.Users
@@ -313,7 +306,7 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
     private static SalaResumoDto MapearCanal(Sala sala, Mensagem? ultima) => new(
         sala.Id,
         TipoSala.Grupo,
-        sala.Equipe?.Nome ?? "Canal sem equipe",
+        sala.Equipe!.Nome,
         null,
         ultima?.Texto,
         ultima?.EnviadaEm);

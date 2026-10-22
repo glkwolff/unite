@@ -28,7 +28,6 @@ builder.Services
         o.Password.RequireUppercase = false;
         o.Password.RequireDigit = false;
     })
-    .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<AppDbContext>()
     // Codigos de 6 digitos (TOTP) do Google Authenticator. O IdentityCore nao
     // registra nenhum provedor de token sozinho.
@@ -68,8 +67,7 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chaveJwt)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
-            NameClaimType = "name",
-            RoleClaimType = "role"
+            NameClaimType = "name"
         };
 
         // O WebSocket do SignalR nao envia header Authorization: o token vem

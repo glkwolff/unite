@@ -238,12 +238,12 @@ o provedor padrão do SignalR procura `ClaimTypes.NameIdentifier`, que não exis
 porque o JWT é lido com `MapInboundClaims = false`.
 
 A sala privada nasce sob demanda e é idempotente: `POST /api/salas/privada` devolve a
-conversa que já existia entre as duas pessoas ou cria uma nova. O `Sala.Nome` fica vazio
-na conversa privada — o título exibido é o nome do outro participante, montado a cada
-resposta, para não envelhecer quando alguém editar o perfil.
+conversa que já existia entre as duas pessoas ou cria uma nova. A sala não tem nome: o
+título exibido é o nome do outro participante (ou da equipe, no canal), montado a cada
+resposta.
 
-Conversa não segue hierarquia: `SalasController` não tem `[ExigeNivel]`. A única trava é
-ser participante da sala — quem não é leva 403.
+Conversa não segue hierarquia: o `SalasController` não pergunta nada à `Permissoes`. A
+única trava é ser participante da sala — quem não é leva 403.
 
 ### O canal da equipe
 
@@ -255,9 +255,7 @@ estão no banco nunca ganhariam canal.
 **O canal não guarda a lista de participantes.** Participante dele é quem tem
 `Usuario.EquipeId` igual ao `Sala.EquipeId`, consultado na hora; o canal não tem uma
 linha em `SalaUsuarios`. Gravar essa lista criaria duas fontes da mesma verdade, que
-divergiriam no instante em que alguém entrasse ou saísse da equipe — e o `DELETE` de
-equipe aplica o `SetNull` **dentro do banco**, onde sincronização nenhuma do EF
-alcançaria. Por isso `AdicionarMembro` e `RemoverMembro` não têm uma linha sobre chat, e
+divergiriam no instante em que alguém entrasse ou saísse da equipe. Por isso `AdicionarMembro` e `RemoverMembro` não têm uma linha sobre chat, e
 quem entra na equipe passa a receber a próxima mensagem sem religar a conexão.
 
 Os dois caminhos de participação ficam lado a lado em `SalasController.ParticipantesAsync`,
@@ -273,11 +271,7 @@ Três consequências aceitas, todas visíveis na leitura do código:
 - o **supervisor precisa ser membro da equipe**, e não só o `SupervisorId` dela: a
   participação é uma regra só, `EquipeId`, e não duas.
 
-A equipe apagada leva o canal e as mensagens junto. Sem isso a sala ficaria com
-`EquipeId` nulo — sem participante nenhum, invisível para todos e com o histórico preso
-no banco. E a comparação `EquipeId` é sempre feita com o `Guid` aberto antes da consulta
-(`if (sala.EquipeId is not Guid equipeId)`): o EF Core compensa a semântica de nulo do
-SQL, então comparar duas colunas nulas daria o canal órfão para toda a liderança.
+Apagar a equipe apaga o canal e as mensagens junto (`Cascade` no `AppDbContext`).
 
 ### Histórico paginado
 
