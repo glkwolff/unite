@@ -148,7 +148,7 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
     /// </summary>
     [HttpGet("{id:guid}/mensagens")]
     public async Task<ActionResult<IEnumerable<MensagemDto>>> Mensagens(
-        Guid id, int limite = 50, DateTime? antesDe = null)
+        Guid id, int limite = 50, DateTimeOffset? antesDe = null)
     {
         var (_, negado) = await ParticipacaoAsync(id);
         if (negado is not null) return negado;
@@ -163,8 +163,11 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         // resolucao de 100 nanossegundos: o empate exigiria dois inserts no
         // mesmo tick da mesma sala. Desempatar por Id ordenaria Guid como texto
         // no SQLite — ordem estavel, porem sem significado algum.
-        if (antesDe is DateTime cursor)
-            consulta = consulta.Where(m => m.EnviadaEm < cursor);
+        if (antesDe is DateTimeOffset cursor)
+        {
+            var limiteUtc = cursor.UtcDateTime;
+            consulta = consulta.Where(m => m.EnviadaEm < limiteUtc);
+        }
 
         var mensagens = await consulta
             .Include(m => m.Autor)

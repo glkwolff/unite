@@ -2,6 +2,7 @@ using ChatApi.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ChatApi.Data;
 
@@ -15,6 +16,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Mensagem> Mensagens => Set<Mensagem>();
     public DbSet<Postagem> Postagens => Set<Postagem>();
     public DbSet<Ciencia> Ciencias => Set<Ciencia>();
+
+    // SQLite nao guarda fuso: tudo e gravado com UtcNow, entao na leitura vira UTC (JSON com "Z").
+    protected override void ConfigureConventions(ModelConfigurationBuilder c) =>
+        c.Properties<DateTime>().HaveConversion<ConversorUtc>();
+
+    private class ConversorUtc() : ValueConverter<DateTime, DateTime>(
+        v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
     // Tamanho de campo fica no proprio modelo, via [MaxLength].
     // Aqui ficam so as regras que atributo nao expressa: chave composta,
