@@ -295,6 +295,12 @@ dezenas de vezes antes do próximo render.
 Código de 6 dígitos do **Google Authenticator** (TOTP), pelo provedor que já vem no
 ASP.NET Core Identity. Não usa nenhum serviço do Google: a chave fica no banco e no celular.
 
+**Por que não Login com Google?** O documento de escopo previa OAuth com o Google, mas a
+equipe optou pelo TOTP: o acesso fica inteiramente empresarial, sem vínculo com a conta
+Google pessoal de ninguém, e funciona em empresas que não usam Google Workspace — o
+público-alvo são empresas pequenas e médias. Qualquer app autenticador (Google, Microsoft,
+Authy) serve.
+
 - **Gerente e Diretor:** obrigatório. No primeiro login após a senha, a tela já mostra o
   QR code para cadastrar. A regra está em `Permissoes.ExigeDoisFatores`.
 - **Supervisor e Funcionário:** opcional, ativado em *Meu perfil*.
