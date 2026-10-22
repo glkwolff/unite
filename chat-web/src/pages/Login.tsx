@@ -1,29 +1,46 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import type { SegundaEtapa } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { Campo } from '../components/Campo'
+import { SegundaEtapaLogin } from '../components/SegundaEtapaLogin'
 
 export function Login() {
   const { entrar } = useAuth()
   const navegar = useNavigate()
+  // Vem do cadastro: "Conta criada..."
+  const aviso = (useLocation().state as { aviso?: string } | null)?.aviso
 
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [segundaEtapa, setSegundaEtapa] = useState<SegundaEtapa | null>(null)
 
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault()
     setErro(null)
     setEnviando(true)
     try {
-      await entrar(email, senha)
-      navegar('/', { replace: true })
+      const etapa = await entrar(email, senha)
+      if (etapa) setSegundaEtapa(etapa)
+      else navegar('/', { replace: true })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Nao foi possivel entrar.')
     } finally {
       setEnviando(false)
     }
+  }
+
+  if (segundaEtapa) {
+    return (
+      <SegundaEtapaLogin
+        etapa={segundaEtapa}
+        email={email}
+        senha={senha}
+        aoVoltar={() => setSegundaEtapa(null)}
+      />
+    )
   }
 
   return (
@@ -34,6 +51,10 @@ export function Login() {
       >
         <h1 className="text-2xl font-semibold text-unite-900">Unite</h1>
         <p className="mt-1 mb-6 text-sm text-slate-500">Entre com sua conta corporativa.</p>
+
+        {aviso && (
+          <p className="mb-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>
+        )}
 
         <Campo
           rotulo="E-mail"

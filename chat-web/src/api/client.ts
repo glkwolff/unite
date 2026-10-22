@@ -11,12 +11,26 @@ export interface Usuario {
   cargo: string | null;
   equipe: string | null;
   nivel: Nivel | null;
+  doisFatoresAtivo: boolean;
+  doisFatoresObrigatorio: boolean;
 }
 
 export interface AuthResposta {
   token: string;
   expiraEm: string;
   usuario: Usuario;
+}
+
+/** Senha certa, falta o codigo. Em "configurar" vem a chave do QR code. */
+export interface SegundaEtapa {
+  etapa: "codigo" | "configurar";
+  chave: string | null;
+  uri: string | null;
+}
+
+export interface ChaveAuthenticator {
+  chave: string;
+  uri: string;
 }
 
 export interface Cargo {

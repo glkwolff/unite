@@ -19,7 +19,7 @@ export function Cadastro() {
     setEnviando(true)
     try {
       await cadastrar(nomeCompleto, email, senha)
-      navegar('/', { replace: true })
+      navegar('/login', { replace: true, state: { aviso: 'Conta criada. Entre com seu e-mail e senha.' } })
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Nao foi possivel cadastrar.')
     } finally {

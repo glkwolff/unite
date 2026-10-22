@@ -1,10 +1,11 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react'
-import { api, token, type AuthResposta, type Usuario } from '../api/client'
+import { api, token, type AuthResposta, type SegundaEtapa, type Usuario } from '../api/client'
 
 interface AuthContexto {
   usuario: Usuario | null
   carregando: boolean
-  entrar: (email: string, senha: string) => Promise<void>
+  /** Nulo quando ja entrou; senao, a etapa do codigo que falta. */
+  entrar: (email: string, senha: string, codigo?: string) => Promise<SegundaEtapa | null>
   cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<void>
   sair: () => void
   /** Atualiza o usuario em memoria (ex.: apos editar perfil ou trocar foto),
@@ -33,17 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setCarregando(false))
   }, [])
 
-  function aplicar(resposta: AuthResposta) {
+  async function entrar(email: string, senha: string, codigo?: string) {
+    const resposta = await api.post<AuthResposta | SegundaEtapa>('/api/auth/login', {
+      email,
+      senha,
+      codigo,
+    })
+    if ('etapa' in resposta) return resposta
+
     token.gravar(resposta.token)
     setUsuario(resposta.usuario)
-  }
-
-  async function entrar(email: string, senha: string) {
-    aplicar(await api.post<AuthResposta>('/api/auth/login', { email, senha }))
+    return null
   }
 
   async function cadastrar(nomeCompleto: string, email: string, senha: string) {
-    aplicar(await api.post<AuthResposta>('/api/auth/registrar', { nomeCompleto, email, senha }))
+    await api.post('/api/auth/registrar', { nomeCompleto, email, senha })
   }
 
   function sair() {

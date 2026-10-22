@@ -29,7 +29,10 @@ builder.Services
         o.Password.RequireDigit = false;
     })
     .AddRoles<IdentityRole<Guid>>()
-    .AddEntityFrameworkStores<AppDbContext>();
+    .AddEntityFrameworkStores<AppDbContext>()
+    // Codigos de 6 digitos (TOTP) do Google Authenticator. O IdentityCore nao
+    // registra nenhum provedor de token sozinho.
+    .AddTokenProvider<AuthenticatorTokenProvider<Usuario>>(TokenOptions.DefaultAuthenticatorProvider);
 
 // ------------------------------------------------------------------ jwt
 var chaveJwt = builder.Configuration["Jwt:Chave"];

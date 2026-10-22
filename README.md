@@ -16,7 +16,7 @@ Trabalho da disciplina de Planejamento de Projeto de Sistema Visual — defesa e
 | --- | --- |
 | Backend | .NET 8 (LTS) · ASP.NET Core Web API · SignalR |
 | Dados | SQLite em modo WAL · Entity Framework Core 10 |
-| Autenticação | ASP.NET Core Identity · JWT · Google OAuth *(a partir de 29/10)* |
+| Autenticação | ASP.NET Core Identity · JWT · 2FA com Google Authenticator (TOTP) |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 |
 | Testes | xUnit · WebApplicationFactory *(a partir de 05/11)* |
 
@@ -125,9 +125,12 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 
 | Método | Rota | Permissão | Descrição |
 | --- | --- | --- | --- |
-| POST | `/api/auth/registrar` | — | Cria a conta e já devolve o token |
-| POST | `/api/auth/login` | — | Autentica e devolve o token |
+| POST | `/api/auth/registrar` | — | Cria a conta (depois é só entrar) |
+| POST | `/api/auth/login` | — | Senha e, se precisar, o código do 2FA; devolve o token |
 | GET | `/api/auth/eu` | autenticado | Dados do usuário logado |
+| POST | `/api/auth/2fa/configurar` | autenticado | Gera a chave e o QR code do Authenticator |
+| POST | `/api/auth/2fa/ativar` | autenticado | Confere o 1º código e liga o 2FA |
+| POST | `/api/auth/2fa/desativar` | autenticado, nível que não exige | Desliga o 2FA (pede um código válido) |
 | GET | `/api/perfil` | autenticado | Dados do próprio perfil |
 | PUT | `/api/perfil` | autenticado | Atualiza o nome completo |
 | POST | `/api/perfil/foto` | autenticado | Upload da foto (multipart, campo `arquivo`) |
@@ -295,6 +298,20 @@ dezenas de vezes antes do próximo render.
 
 ---
 
+## Verificação em duas etapas
+
+Código de 6 dígitos do **Google Authenticator** (TOTP), pelo provedor que já vem no
+ASP.NET Core Identity. Não usa nenhum serviço do Google: a chave fica no banco e no celular.
+
+- **Gerente e Diretor:** obrigatório. No primeiro login após a senha, a tela já mostra o
+  QR code para cadastrar. A regra está em `Permissoes.ExigeDoisFatores`.
+- **Supervisor e Funcionário:** opcional, ativado em *Meu perfil*.
+- **Um endpoint só:** `POST /api/auth/login` recebe `{ email, senha, codigo? }`. Se a pessoa
+  precisa de 2FA e o código não veio, a resposta é `{ etapa: "codigo" }` ou
+  `{ etapa: "configurar", chave, uri }` (QR code); o front pede o código e manda o login de
+  novo, agora com ele.
+- **Tentativas:** 5 códigos errados seguidos travam a conta por 5 minutos (lockout do Identity).
+
 ## Progresso
 
 | Data | Etapa | Situação |
@@ -307,7 +324,7 @@ dezenas de vezes antes do próximo render.
 | 08/10 | Chat em grupo e histórico | ✅ |
 | 15/10 | Feed de notícias | ✅ |
 | 22/10 | Botão "Ciente" | ✅ (adiantado) |
-| 29/10 | Login com Google | — |
+| 29/10 | 2FA com Google Authenticator | ✅ (adiantado) |
 | 05/11 | Testes de integração | — |
 | 12/11 | Ajustes finais | — |
 | 19/11 | Defesa do código | — |

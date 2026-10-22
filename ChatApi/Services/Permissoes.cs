@@ -161,6 +161,15 @@ public class Permissoes(AppDbContext db, IHttpContextAccessor http)
         await NivelAsync() != NivelHierarquico.Supervisor
         || NivelEfetivo(nivelDoLeitor) == NivelHierarquico.Funcionario;
 
+    // ------------------------------------------------------------------- 2fa
+
+    /// <summary>
+    /// Quem pode mexer na estrutura da empresa (gerente para cima) entra com
+    /// senha + codigo do Authenticator. Para os demais o 2FA e opcional.
+    /// </summary>
+    public static bool ExigeDoisFatores(NivelHierarquico? nivel) =>
+        nivel is not null && nivel <= NivelHierarquico.Gerente;
+
     private static NivelHierarquico NivelEfetivo(NivelHierarquico? nivel) => nivel ?? NivelHierarquico.Funcionario;
 
     /// <summary>Nivel numericamente menor ou igual = poder maior ou igual.</summary>
