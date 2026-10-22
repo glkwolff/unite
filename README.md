@@ -78,21 +78,22 @@ A interface sobe em **http://localhost:5173**. Se a API estiver em outra porta, 
 
 ```
 ChatApi/
-├── Controllers/AuthController.cs      cadastro, login e /eu
-├── Controllers/PerfilController.cs    ver/editar perfil, upload de foto
+├── Controllers/AuthController.cs      cadastro, login (com 2FA), /eu e 2FA do perfil
+├── Controllers/PerfilController.cs    editar nome, enviar/remover foto
 ├── Controllers/CargosController.cs    CRUD de cargos
 ├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
 ├── Controllers/UsuariosController.cs  listagem de pessoas e atribuição de cargo
 ├── Controllers/SalasController.cs     conversas privadas e mensagens
 ├── Controllers/PostagensController.cs feed de notícias: listar, publicar, remover
 ├── Hubs/ChatHub.cs                    canal de tempo real (só recebe)
-├── Data/AppDbContext.cs               mapeamento das entidades
+├── Data/AppDbContext.cs               chaves, índices, delete e datas em UTC
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
 ├── Data/SeedCargos.cs                 cria os 4 cargos padrão numa base nova
 ├── Models/                            Usuario, Cargo, Equipe, Sala,
 │                                       SalaUsuario, Mensagem, Postagem, Ciencia
+├── Dtos/                              entrada (com validação) e saída (XxxDto.De)
 ├── Services/TokenService.cs           emissão do JWT
-├── Services/Permissoes.cs             quem pode o quê (RF11)
+├── Services/Permissoes.cs             quem pode o quê (única fonte da regra)
 ├── Services/ProvedorIdUsuario.cs      claim "sub" como id do usuario no SignalR
 ├── wwwroot/uploads/perfis/            fotos de perfil (fora do git)
 └── Migrations/
@@ -101,6 +102,8 @@ chat-web/src/
 ├── api/client.ts                   wrapper de fetch com Bearer, PUT/DELETE e upload
 ├── auth/                           AuthContext, useAuth, RotaProtegida
 ├── components/Layout.tsx           casca com sidebar e topbar
+├── components/CodigoAuthenticator  QR code e campo do código do 2FA
+├── components/SegundaEtapaLogin    tela do código depois da senha
 ├── lib/permissoes.ts               espelho das regras do backend, só para a UI
 ├── lib/hubChat.ts                  conexão SignalR de leitura do chat
 └── pages/                          Login, Cadastro, Feed, Perfil, Equipes,
@@ -167,7 +170,7 @@ token vai na query string (`?access_token=`), porque o protocolo não manda head
 traz `{ itens, temMais }`. `limite` vai de 1 a 50 (padrão 20). Datas saem em UTC (`...Z`)
 e o front exibe no fuso de quem lê. ⁶ Aviso com `institucional: true` exige gerente.
 
-## Permissões (RF11)
+## Permissões
 
 ```
                  cargos   equipes    membros           atribuir cargo

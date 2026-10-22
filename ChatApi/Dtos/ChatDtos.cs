@@ -3,7 +3,7 @@ using ChatApi.Models;
 
 namespace ChatApi.Dtos;
 
-// ------------------------------------------------------------------- salas
+// ---- salas
 
 public class AbrirPrivadaDto
 {
@@ -38,7 +38,7 @@ public record SalaResumoDto(
         new(sala.Id, TipoSala.Grupo, sala.Equipe!.Nome, null, ultima?.Texto, ultima?.EnviadaEm);
 }
 
-// --------------------------------------------------------------- mensagens
+// ---- mensagens
 
 public class EnviarMensagemDto
 {

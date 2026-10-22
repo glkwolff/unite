@@ -23,10 +23,7 @@ public class AuthController(
         if (await usuarios.FindByEmailAsync(dto.Email) is not null)
             return Conflict(new { erro = "Ja existe um usuario com este e-mail." });
 
-        // Ovo e galinha: sem diretor ninguem atribui cargo, e sem cargo
-        // ninguem e diretor. Quem registra a conta numa base vazia assume a
-        // diretoria. A corrida aqui e aceitavel — instancia unica, e o caso e
-        // o primeirissimo registro do sistema.
+        // Primeira conta da base vira Diretor (senao ninguem conseguiria dar cargos).
         var baseVazia = !await db.Users.AnyAsync();
 
         var usuario = new Usuario

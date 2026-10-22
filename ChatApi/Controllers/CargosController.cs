@@ -8,8 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-// Qualquer autenticado le a lista de cargos (o organograma depende dela);
-// so o diretor escreve.
+// Qualquer logado le; so o diretor escreve.
 [Authorize]
 [ApiController]
 [Route("api/cargos")]
@@ -65,12 +64,7 @@ public class CargosController(AppDbContext db, Permissoes permissoes) : Controll
         var cargo = await db.Cargos.FindAsync(id);
         if (cargo is null) return NotFound(new { erro = "Cargo nao encontrado." });
 
-        // O SetNull do DbContext nao apaga ninguem, mas deixaria todo mundo
-        // desse cargo sem nivel. Apagar o cargo de diretor com gente dentro
-        // tiraria a diretoria inteira de uma vez: ninguem mais gerenciaria
-        // cargos e nao haveria volta pela aplicacao, porque o SeedCargos so
-        // age com a tabela vazia. Esvaziar o cargo antes e explicito e
-        // reversivel.
+        // Cargo com gente nao sai: apagar o de Diretor deixaria a empresa sem diretoria.
         if (await db.Users.AnyAsync(u => u.CargoId == id))
             return BadRequest(new
             {

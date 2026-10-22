@@ -11,10 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ChatApi.Controllers;
 
 /// <summary>
-/// As conversas: a privada, entre duas pessoas, e o canal da equipe. Nao
-/// pergunta a <see cref="Permissoes"/> se alguem "pode" — conversa nao segue
-/// hierarquia, e a unica trava e participar da sala. A Permissoes entra aqui
-/// so para responder qual e a minha equipe.
+/// Conversa privada e canal da equipe. Chat nao segue hierarquia: a unica trava e
+/// participar da sala.
 /// </summary>
 [Authorize]
 [ApiController]
@@ -53,10 +51,7 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(resumos.OrderByDescending(r => r!.UltimaEm ?? DateTime.MinValue));
     }
 
-    /// <summary>
-    /// Abre a conversa com alguem. E idempotente: se as duas pessoas ja
-    /// conversaram antes, devolve a mesma sala em vez de criar outra.
-    /// </summary>
+    /// <summary>Abre a conversa com alguem; se ja existe, devolve a mesma.</summary>
     [HttpPost("privada")]
     public async Task<ActionResult<SalaResumoDto>> AbrirPrivada(AbrirPrivadaDto dto)
     {
@@ -96,16 +91,7 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(SalaResumoDto.Privada(sala, meuId, ultimas.GetValueOrDefault(sala.Id)));
     }
 
-    /// <summary>
-    /// Abre o canal da MINHA equipe, e so dela: a equipe sai do usuario logado
-    /// em vez de vir no corpo, entao ninguem abre o canal de uma equipe que nao
-    /// e a sua. E idempotente igual ao <see cref="AbrirPrivada"/>.
-    ///
-    /// O canal nasce no primeiro clique, e nao junto com a equipe, porque as
-    /// equipes que ja estao no banco nunca ganhariam canal — precisaria de um
-    /// backfill. E nasce num POST, nao dentro do GET da listagem, porque criar
-    /// registro num GET e efeito colateral escondido.
-    /// </summary>
+    /// <summary>Abre o canal da equipe de quem chama (criado no primeiro uso); se ja existe, devolve o mesmo.</summary>
     [HttpPost("equipe")]
     public async Task<ActionResult<SalaResumoDto>> AbrirCanalDaEquipe()
     {
@@ -120,8 +106,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
 
         if (sala is null)
         {
-            // Sem linha nenhuma em SalaUsuarios e com Nome vazio: participantes
-            // e titulo saem da equipe na hora da leitura.
             sala = new Sala { Tipo = TipoSala.Grupo, EquipeId = equipeId };
             db.Salas.Add(sala);
             await db.SaveChangesAsync();

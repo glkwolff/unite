@@ -3,7 +3,7 @@ using ChatApi.Models;
 
 namespace ChatApi.Dtos;
 
-// ------------------------------------------------------------------ cargos
+// ---- cargos
 
 public class CargoEntradaDto
 {
@@ -19,7 +19,7 @@ public record CargoDto(Guid Id, string Nome, NivelHierarquico Nivel, int TotalUs
     public static CargoDto De(Cargo c, int totalUsuarios) => new(c.Id, c.Nome, c.Nivel, totalUsuarios);
 }
 
-// ----------------------------------------------------------------- equipes
+// ---- equipes
 
 public class EquipeEntradaDto
 {
@@ -27,7 +27,7 @@ public class EquipeEntradaDto
     [MaxLength(80)]
     public string Nome { get; set; } = string.Empty;
 
-    /// <summary>Opcional: equipe pode ficar sem supervisor definido ainda.</summary>
+    /// <summary>Opcional.</summary>
     public Guid? SupervisorId { get; set; }
 }
 
@@ -78,13 +78,9 @@ public record EquipeDto(
         e.Membros.Select(MembroResumoDto.De));
 }
 
-// ---------------------------------------------------------- arvore (organograma)
+// ---- arvore (organograma)
 
-/// <summary>
-/// Estrutura pronta para desenhar o organograma no front: diretoria e gerencia
-/// no topo (sem vinculo formal de equipe — enxergam tudo), depois cada equipe
-/// com seu supervisor e membros, e por fim quem ainda nao foi alocado.
-/// </summary>
+/// <summary>Organograma: diretoria e gerencia no topo, as equipes, e quem esta sem equipe.</summary>
 public record ArvoreOrganizacionalDto(
     IEnumerable<MembroResumoDto> Lideranca,
     IEnumerable<EquipeDto> Equipes,

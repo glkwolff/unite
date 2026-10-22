@@ -56,8 +56,7 @@ public class PerfilController(
         var pastaFotos = Path.Combine(pastaWebroot, "uploads", "perfis");
         Directory.CreateDirectory(pastaFotos);
 
-        // Nome fixo por usuario (nao pelo arquivo original): cada novo envio
-        // substitui a foto anterior em vez de acumular lixo em disco.
+        // Nome fixo por usuario: a foto nova substitui a anterior.
         RemoverFotoAnteriorSeExistir(pastaFotos, usuario.Id);
         var nomeArquivo = $"{usuario.Id}{extensao}";
         var caminhoCompleto = Path.Combine(pastaFotos, nomeArquivo);

@@ -20,8 +20,7 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         return Ok(equipes.Select(EquipeDto.De));
     }
 
-    /// <summary>Monta o organograma inteiro em uma chamada so — evita o front
-    /// ter que cruzar /equipes com /cargos para desenhar a arvore.</summary>
+    /// <summary>Organograma inteiro numa chamada so.</summary>
     [HttpGet("arvore")]
     public async Task<ActionResult<ArvoreOrganizacionalDto>> Arvore()
     {
@@ -91,7 +90,6 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     [HttpPost("{id:guid}/membros")]
     public async Task<ActionResult<EquipeDto>> AdicionarMembro(Guid id, AdicionarMembroDto dto)
     {
-        // Gerente para cima mexe em qualquer equipe; o supervisor, so na dele.
         if (!await permissoes.PodeGerenciarMembrosAsync(id))
             return Forbid();
 
@@ -125,7 +123,7 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     /// <summary>Diretoria e gerencia nao pertencem a uma equipe: lideram todas.</summary>
     private static bool EstaNaLideranca(Usuario u) => u.Cargo?.Nivel <= NivelHierarquico.Gerente;
 
-    /// <summary>Equipe com supervisor e membros, cada um com o cargo: o que o EquipeDto precisa.</summary>
+    /// <summary>Equipe com supervisor e membros (e o cargo de cada um).</summary>
     private IQueryable<Equipe> EquipesCompletas() => db.Equipes
         .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
         .Include(e => e.Membros).ThenInclude(m => m.Cargo);

@@ -8,11 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-/// <summary>
-/// Feed de noticias e botao "Ciente": qualquer autenticado le e marca ciente;
-/// publicar, remover e ver quem marcou dependem do nivel hierarquico (regras
-/// em <see cref="Permissoes"/>).
-/// </summary>
+/// <summary>Feed de noticias e botao "Ciente". As regras de quem pode o que estao em Permissoes.</summary>
 [Authorize]
 [ApiController]
 [Route("api/postagens")]
@@ -21,12 +17,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
     private const int LimitePadrao = 20;
     private const int LimiteMaximo = 50;
 
-    /// <summary>
-    /// Feed em ordem cronologica, da mais recente para a mais antiga.
-    /// Paginacao por cursor: <paramref name="antes"/> e a data da ultima
-    /// postagem que o front ja tem. Diferente de ?pagina=2, nao repete nem
-    /// pula itens quando alguem publica enquanto o usuario rola a tela.
-    /// </summary>
+    /// <summary>Feed do mais novo ao mais antigo. Proxima pagina: ?antes= a data da ultima recebida.</summary>
     [HttpGet]
     public async Task<ActionResult<PaginaFeedDto>> Listar(
         [FromQuery] DateTimeOffset? antes,
@@ -94,20 +85,15 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         if (!await permissoes.PodeRemoverPostagemAsync(postagem))
             return Forbid();
 
-        // As ciencias da postagem vao junto (Cascade no AppDbContext).
         db.Postagens.Remove(postagem);
         await db.SaveChangesAsync();
 
         return NoContent();
     }
 
-    // ---------------------------------------------------------------- ciente
+    // ---- ciente
 
-    /// <summary>
-    /// Marca "Ciente". Nao tem desfazer: e uma confirmacao de leitura, e quem
-    /// cobra a leitura precisa poder confiar nela. Marcar de novo nao e erro —
-    /// devolve a postagem como esta (duplo clique, duas abas abertas).
-    /// </summary>
+    /// <summary>Marca "Ciente" (nao tem desfazer). Marcar de novo nao e erro.</summary>
     [HttpPost("{id:guid}/ciente")]
     public async Task<ActionResult<PostagemDto>> MarcarCiente(Guid id)
     {
@@ -129,19 +115,14 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
             }
             catch (DbUpdateException)
             {
-                // Dois cliques simultaneos: o indice unico barrou o segundo.
-                // O resultado e o mesmo — a pessoa esta ciente.
+                // Dois cliques ao mesmo tempo: a chave barrou o segundo, a pessoa ja esta ciente.
             }
         }
 
         return Ok((await MontarAsync([postagem]))[0]);
     }
 
-    /// <summary>
-    /// Quem marcou "Ciente", na ordem em que marcou. Diretor ve tudo; gerente
-    /// ve as postagens de supervisores e funcionarios (e as proprias);
-    /// supervisor ve so as proprias, e nelas so os funcionarios.
-    /// </summary>
+    /// <summary>Quem marcou "Ciente" e quando (quem ve o que: Permissoes).</summary>
     [HttpGet("{id:guid}/ciencias")]
     public async Task<ActionResult<IEnumerable<CienciaDto>>> ListarCiencias(Guid id)
     {
@@ -169,18 +150,14 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         return Ok(visiveis);
     }
 
-    // ------------------------------------------------------------ auxiliares
+    // ---- apoio
 
     private Task<Postagem?> BuscarComAutorAsync(Guid id) =>
         db.Postagens
             .Include(p => p.Autor).ThenInclude(a => a.Cargo)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-    /// <summary>
-    /// Transforma postagens (com Autor.Cargo carregado) em DTOs. As ciencias de
-    /// todas elas vem numa consulta so — sem isso cada pagina do feed faria
-    /// uma consulta por postagem.
-    /// </summary>
+    /// <summary>Postagens (com Autor.Cargo) viram DTO; as ciencias de todas vem numa consulta so.</summary>
     private async Task<List<PostagemDto>> MontarAsync(IReadOnlyList<Postagem> postagens)
     {
         var ids = postagens.Select(p => p.Id).ToList();

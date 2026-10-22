@@ -23,10 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     private class ConversorUtc() : ValueConverter<DateTime, DateTime>(
         v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
-    // Tamanho de campo fica no proprio modelo, via [MaxLength].
-    // Aqui ficam so as regras que atributo nao expressa: chave composta,
-    // indices e o que acontece ao apagar um registro relacionado.
-    // (String nao anulavel ja vira NOT NULL: o projeto usa nullable enable.)
+    // Tamanho de campo fica no modelo ([MaxLength]); aqui so chaves, indices e o que acontece no delete.
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -41,8 +38,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .HasForeignKey(u => u.EquipeId).OnDelete(DeleteBehavior.SetNull);
         });
 
-        // Segundo relacionamento entre Equipe e Usuario: sem isto o EF
-        // confundiria o Supervisor com a colecao Membros.
+        // Segundo vinculo Equipe-Usuario: sem isto o EF confunde Supervisor com Membros.
         b.Entity<Equipe>()
             .HasOne(t => t.Supervisor).WithMany()
             .HasForeignKey(t => t.SupervisorId).OnDelete(DeleteBehavior.Restrict);

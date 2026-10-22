@@ -3,10 +3,8 @@ using Microsoft.AspNetCore.SignalR;
 namespace ChatApi.Services;
 
 /// <summary>
-/// Diz ao SignalR qual claim identifica o usuario de uma conexao, o que permite
-/// enderecar mensagens com Clients.Users(...) sem gerenciar grupos na mao.
-/// O provedor padrao procura ClaimTypes.NameIdentifier; como o Program.cs
-/// desliga o MapInboundClaims, o id continua na claim "sub" original.
+/// Diz ao SignalR que o id do usuario e a claim "sub" (o padrao procuraria NameIdentifier).
+/// E o que faz o Clients.Users(...) achar a pessoa.
 /// </summary>
 public class ProvedorIdUsuario : IUserIdProvider
 {

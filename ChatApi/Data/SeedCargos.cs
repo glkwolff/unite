@@ -5,8 +5,7 @@ namespace ChatApi.Data;
 
 public static class SeedCargos
 {
-    /// <summary>Nome padrao de cada nivel. O nome do cargo e texto livre —
-    /// estes sao so os quatro que toda empresa tem no primeiro dia.</summary>
+    /// <summary>Um cargo por nivel; depois o diretor pode criar outros.</summary>
     private static readonly (string Nome, NivelHierarquico Nivel)[] Padrao =
     [
         ("Diretor", NivelHierarquico.Diretor),
@@ -15,11 +14,7 @@ public static class SeedCargos
         ("Funcionario", NivelHierarquico.Funcionario)
     ];
 
-    /// <summary>
-    /// Numa base nova nao existe nenhum cargo, entao nao haveria o que atribuir
-    /// ao primeiro usuario — nem como sair do lugar. Roda no startup e nao faz
-    /// nada se ja houver qualquer cargo cadastrado.
-    /// </summary>
+    /// <summary>Roda no startup; so age se a tabela de cargos estiver vazia.</summary>
     public static async Task GarantirAsync(AppDbContext db)
     {
         if (await db.Cargos.AnyAsync()) return;
