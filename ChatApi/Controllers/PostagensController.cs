@@ -177,7 +177,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
             if (await permissoes.PodeVerLeitorAsync(c.Usuario.Cargo?.Nivel))
                 visiveis.Add(new CienciaDto(
                     MapeamentoOrganizacao.ParaResumo(c.Usuario),
-                    ComoUtc(c.ConfirmadaEm)));
+                    c.ConfirmadaEm));
         }
 
         return Ok(visiveis);
@@ -233,10 +233,10 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
                 p.Titulo,
                 p.Conteudo,
                 p.Institucional,
-                ComoUtc(p.PublicadaEm),
+                p.PublicadaEm,
                 MapeamentoOrganizacao.ParaResumo(p.Autor),
                 await permissoes.PodeRemoverPostagemAsync(p),
-                minha is null ? null : ComoUtc(minha.ConfirmadaEm),
+                minha is null ? null : minha.ConfirmadaEm,
                 permissoes.PodeMarcarCiente(p),
                 podeVer,
                 total));
@@ -244,11 +244,4 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
 
         return resultado;
     }
-
-    /// <summary>
-    /// O SQLite devolve DateTime sem fuso (Kind = Unspecified) e o JSON sairia
-    /// sem o "Z" — o navegador leria como horario local e o aviso apareceria
-    /// 3 horas adiantado. As datas sao gravadas em UTC, entao aqui so se declara isso.
-    /// </summary>
-    private static DateTime ComoUtc(DateTime data) => DateTime.SpecifyKind(data, DateTimeKind.Utc);
 }
