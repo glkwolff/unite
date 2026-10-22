@@ -19,13 +19,6 @@ public class PerfilController(
     private static readonly string[] ExtensoesPermitidas = [".jpg", ".jpeg", ".png", ".webp"];
     private const long TamanhoMaximoBytes = 5 * 1024 * 1024; // 5 MB
 
-    [HttpGet]
-    public async Task<ActionResult<UsuarioDto>> Obter()
-    {
-        var usuario = await permissoes.UsuarioAtualAsync();
-        return usuario is null ? Unauthorized() : Ok(UsuarioDto.De(usuario));
-    }
-
     [HttpPut]
     public async Task<ActionResult<UsuarioDto>> Atualizar(AtualizarPerfilDto dto)
     {
@@ -63,8 +56,7 @@ public class PerfilController(
         var pastaFotos = Path.Combine(pastaWebroot, "uploads", "perfis");
         Directory.CreateDirectory(pastaFotos);
 
-        // Nome fixo por usuario (nao pelo arquivo original): cada novo envio
-        // substitui a foto anterior em vez de acumular lixo em disco.
+        // Nome fixo por usuario: a foto nova substitui a anterior.
         RemoverFotoAnteriorSeExistir(pastaFotos, usuario.Id);
         var nomeArquivo = $"{usuario.Id}{extensao}";
         var caminhoCompleto = Path.Combine(pastaFotos, nomeArquivo);

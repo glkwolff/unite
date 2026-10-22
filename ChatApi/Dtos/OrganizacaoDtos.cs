@@ -3,7 +3,7 @@ using ChatApi.Models;
 
 namespace ChatApi.Dtos;
 
-// ------------------------------------------------------------------ cargos
+// ---- cargos
 
 public class CargoEntradaDto
 {
@@ -14,9 +14,12 @@ public class CargoEntradaDto
     public NivelHierarquico Nivel { get; set; }
 }
 
-public record CargoDto(Guid Id, string Nome, NivelHierarquico Nivel, int TotalUsuarios);
+public record CargoDto(Guid Id, string Nome, NivelHierarquico Nivel, int TotalUsuarios)
+{
+    public static CargoDto De(Cargo c, int totalUsuarios) => new(c.Id, c.Nome, c.Nivel, totalUsuarios);
+}
 
-// ----------------------------------------------------------------- equipes
+// ---- equipes
 
 public class EquipeEntradaDto
 {
@@ -24,7 +27,7 @@ public class EquipeEntradaDto
     [MaxLength(80)]
     public string Nome { get; set; } = string.Empty;
 
-    /// <summary>Opcional: equipe pode ficar sem supervisor definido ainda.</summary>
+    /// <summary>Opcional.</summary>
     public Guid? SupervisorId { get; set; }
 }
 
@@ -34,13 +37,13 @@ public class AdicionarMembroDto
     public Guid UsuarioId { get; set; }
 }
 
-/// <summary>Recorte minimo de usuario, usado dentro de listas e da arvore —
-/// nunca expoe e-mail/senha alem do estritamente necessario para a UI.</summary>
-public record MembroResumoDto(Guid Id, string NomeCompleto, string? FotoUrl, string? Cargo, NivelHierarquico? Nivel);
+/// <summary>Resumo de uma pessoa em listas e na arvore (sem e-mail). Exige Cargo carregado.</summary>
+public record MembroResumoDto(Guid Id, string NomeCompleto, string? FotoUrl, string? Cargo, NivelHierarquico? Nivel)
+{
+    public static MembroResumoDto De(Usuario u) => new(u.Id, u.NomeCompleto, u.FotoUrl, u.Cargo?.Nome, u.Cargo?.Nivel);
+}
 
-/// <summary>Recorte da tela de administracao de pessoas: alem do resumo, traz
-/// os ids de cargo e equipe, que a tela precisa para montar o select e para
-/// saber o que ja esta selecionado. Continua sem expor e-mail.</summary>
+/// <summary>Pessoa na tela de administracao: o resumo mais os ids de cargo e equipe. Exige Cargo e Equipe carregados.</summary>
 public record PessoaDto(
     Guid Id,
     string NomeCompleto,
@@ -49,7 +52,11 @@ public record PessoaDto(
     string? Cargo,
     NivelHierarquico? Nivel,
     Guid? EquipeId,
-    string? Equipe);
+    string? Equipe)
+{
+    public static PessoaDto De(Usuario u) => new(
+        u.Id, u.NomeCompleto, u.FotoUrl, u.CargoId, u.Cargo?.Nome, u.Cargo?.Nivel, u.EquipeId, u.Equipe?.Nome);
+}
 
 public class AtribuirCargoDto
 {
@@ -57,19 +64,23 @@ public class AtribuirCargoDto
     public Guid? CargoId { get; set; }
 }
 
+/// <summary>Exige Supervisor.Cargo e Membros.Cargo carregados.</summary>
 public record EquipeDto(
     Guid Id,
     string Nome,
     MembroResumoDto? Supervisor,
-    IEnumerable<MembroResumoDto> Membros);
+    IEnumerable<MembroResumoDto> Membros)
+{
+    public static EquipeDto De(Equipe e) => new(
+        e.Id,
+        e.Nome,
+        e.Supervisor is null ? null : MembroResumoDto.De(e.Supervisor),
+        e.Membros.Select(MembroResumoDto.De));
+}
 
-// ---------------------------------------------------------- arvore (organograma)
+// ---- arvore (organograma)
 
-/// <summary>
-/// Estrutura pronta para desenhar o organograma no front: diretoria e gerencia
-/// no topo (sem vinculo formal de equipe — enxergam tudo), depois cada equipe
-/// com seu supervisor e membros, e por fim quem ainda nao foi alocado.
-/// </summary>
+/// <summary>Organograma: diretoria e gerencia no topo, as equipes, e quem esta sem equipe.</summary>
 public record ArvoreOrganizacionalDto(
     IEnumerable<MembroResumoDto> Lideranca,
     IEnumerable<EquipeDto> Equipes,

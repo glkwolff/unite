@@ -15,10 +15,12 @@ Trabalho da disciplina de Planejamento de Projeto de Sistema Visual — defesa e
 | Camada | Tecnologia |
 | --- | --- |
 | Backend | .NET 8 (LTS) · ASP.NET Core Web API · SignalR |
-| Dados | SQLite em modo WAL · Entity Framework Core 10 |
+| Dados | SQLite em modo WAL · Entity Framework Core 8 |
 | Autenticação | ASP.NET Core Identity · JWT · 2FA com Google Authenticator (TOTP) |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 |
 | Testes | xUnit · WebApplicationFactory *(a partir de 05/11)* |
+
+.NET 8 e não o 10 previsto no escopo: é a versão instalada nos computadores da faculdade.
 
 Roda em **instância única**: sem Redis, sem RabbitMQ, sem Docker. O acesso a dados está
 atrás do EF Core, então trocar o SQLite por PostgreSQL é mudar o provider.
@@ -76,22 +78,22 @@ A interface sobe em **http://localhost:5173**. Se a API estiver em outra porta, 
 
 ```
 ChatApi/
-├── Controllers/AuthController.cs      cadastro, login e /eu
-├── Controllers/PerfilController.cs    ver/editar perfil, upload de foto
+├── Controllers/AuthController.cs      cadastro, login (com 2FA), /eu e 2FA do perfil
+├── Controllers/PerfilController.cs    editar nome, enviar/remover foto
 ├── Controllers/CargosController.cs    CRUD de cargos
 ├── Controllers/EquipesController.cs   CRUD de equipes, membros e /arvore
 ├── Controllers/UsuariosController.cs  listagem de pessoas e atribuição de cargo
 ├── Controllers/SalasController.cs     conversas privadas e mensagens
 ├── Controllers/PostagensController.cs feed de notícias: listar, publicar, remover
 ├── Hubs/ChatHub.cs                    canal de tempo real (só recebe)
-├── Data/AppDbContext.cs               mapeamento das entidades
+├── Data/AppDbContext.cs               chaves, índices, delete e datas em UTC
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
 ├── Data/SeedCargos.cs                 cria os 4 cargos padrão numa base nova
 ├── Models/                            Usuario, Cargo, Equipe, Sala,
 │                                       SalaUsuario, Mensagem, Postagem, Ciencia
+├── Dtos/                              entrada (com validação) e saída (XxxDto.De)
 ├── Services/TokenService.cs           emissão do JWT
-├── Services/Permissoes.cs             quem pode o quê (RF11)
-├── Services/MapeamentoOrganizacao.cs  Usuario -> MembroResumoDto
+├── Services/Permissoes.cs             quem pode o quê (única fonte da regra)
 ├── Services/ProvedorIdUsuario.cs      claim "sub" como id do usuario no SignalR
 ├── wwwroot/uploads/perfis/            fotos de perfil (fora do git)
 └── Migrations/
@@ -100,6 +102,8 @@ chat-web/src/
 ├── api/client.ts                   wrapper de fetch com Bearer, PUT/DELETE e upload
 ├── auth/                           AuthContext, useAuth, RotaProtegida
 ├── components/Layout.tsx           casca com sidebar e topbar
+├── components/CodigoAuthenticator  QR code e campo do código do 2FA
+├── components/SegundaEtapaLogin    tela do código depois da senha
 ├── lib/permissoes.ts               espelho das regras do backend, só para a UI
 ├── lib/hubChat.ts                  conexão SignalR de leitura do chat
 └── pages/                          Login, Cadastro, Feed, Perfil, Equipes,
@@ -131,7 +135,6 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | POST | `/api/auth/2fa/configurar` | autenticado | Gera a chave e o QR code do Authenticator |
 | POST | `/api/auth/2fa/ativar` | autenticado | Confere o 1º código e liga o 2FA |
 | POST | `/api/auth/2fa/desativar` | autenticado, nível que não exige | Desliga o 2FA (pede um código válido) |
-| GET | `/api/perfil` | autenticado | Dados do próprio perfil |
 | PUT | `/api/perfil` | autenticado | Atualiza o nome completo |
 | POST | `/api/perfil/foto` | autenticado | Upload da foto (multipart, campo `arquivo`) |
 | DELETE | `/api/perfil/foto` | autenticado | Remove a foto atual |
@@ -153,7 +156,6 @@ aplicação — assim as migrations funcionam sem a chave JWT configurada.
 | POST | `/api/salas/{id}/mensagens` | participante | Envia a mensagem e avisa o hub |
 | WS | `/chat` | autenticado³ | Hub SignalR: emite `MensagemRecebida` |
 | GET | `/api/postagens?antes=&limite=` | autenticado | Feed, do mais recente ao mais antigo⁵ |
-| GET | `/api/postagens/{id}` | autenticado | Uma postagem |
 | POST | `/api/postagens` | supervisor⁶ | Publica um aviso |
 | DELETE | `/api/postagens/{id}` | autor ou gerente | Remove um aviso |
 | POST | `/api/postagens/{id}/ciente` | autenticado, menos o autor | Marca "Ciente" (sem desfazer) |
@@ -168,7 +170,7 @@ token vai na query string (`?access_token=`), porque o protocolo não manda head
 traz `{ itens, temMais }`. `limite` vai de 1 a 50 (padrão 20). Datas saem em UTC (`...Z`)
 e o front exibe no fuso de quem lê. ⁶ Aviso com `institucional: true` exige gerente.
 
-## Permissões (RF11)
+## Permissões
 
 ```
                  cargos   equipes    membros           atribuir cargo
@@ -214,6 +216,10 @@ rebaixamento valem na requisição seguinte, e não só no próximo login. O fro
 espelho dessas regras em `chat-web/src/lib/permissoes.ts`, usado apenas para não
 desenhar botão que o servidor vai recusar.
 
+**Quatro níveis, não três:** o escopo previa Gerente, Supervisor e Funcionário. A equipe
+acrescentou o **Diretor** acima do Gerente para ter um nível com acesso total — é o único que
+mexe nos cargos e atribui qualquer nível.
+
 **Primeiro acesso:** numa base vazia não existe diretor, e sem diretor ninguém atribui
 cargo. Por isso o startup cria os quatro cargos padrão e a primeira conta registrada
 assume a diretoria. Pelo mesmo motivo o sistema recusa tirar o cargo do último diretor
@@ -240,12 +246,12 @@ o provedor padrão do SignalR procura `ClaimTypes.NameIdentifier`, que não exis
 porque o JWT é lido com `MapInboundClaims = false`.
 
 A sala privada nasce sob demanda e é idempotente: `POST /api/salas/privada` devolve a
-conversa que já existia entre as duas pessoas ou cria uma nova. O `Sala.Nome` fica vazio
-na conversa privada — o título exibido é o nome do outro participante, montado a cada
-resposta, para não envelhecer quando alguém editar o perfil.
+conversa que já existia entre as duas pessoas ou cria uma nova. A sala não tem nome: o
+título exibido é o nome do outro participante (ou da equipe, no canal), montado a cada
+resposta.
 
-Conversa não segue hierarquia: `SalasController` não tem `[ExigeNivel]`. A única trava é
-ser participante da sala — quem não é leva 403.
+Conversa não segue hierarquia: o `SalasController` não pergunta nada à `Permissoes`. A
+única trava é ser participante da sala — quem não é leva 403.
 
 ### O canal da equipe
 
@@ -257,9 +263,7 @@ estão no banco nunca ganhariam canal.
 **O canal não guarda a lista de participantes.** Participante dele é quem tem
 `Usuario.EquipeId` igual ao `Sala.EquipeId`, consultado na hora; o canal não tem uma
 linha em `SalaUsuarios`. Gravar essa lista criaria duas fontes da mesma verdade, que
-divergiriam no instante em que alguém entrasse ou saísse da equipe — e o `DELETE` de
-equipe aplica o `SetNull` **dentro do banco**, onde sincronização nenhuma do EF
-alcançaria. Por isso `AdicionarMembro` e `RemoverMembro` não têm uma linha sobre chat, e
+divergiriam no instante em que alguém entrasse ou saísse da equipe. Por isso `AdicionarMembro` e `RemoverMembro` não têm uma linha sobre chat, e
 quem entra na equipe passa a receber a próxima mensagem sem religar a conexão.
 
 Os dois caminhos de participação ficam lado a lado em `SalasController.ParticipantesAsync`,
@@ -275,19 +279,14 @@ Três consequências aceitas, todas visíveis na leitura do código:
 - o **supervisor precisa ser membro da equipe**, e não só o `SupervisorId` dela: a
   participação é uma regra só, `EquipeId`, e não duas.
 
-A equipe apagada leva o canal e as mensagens junto. Sem isso a sala ficaria com
-`EquipeId` nulo — sem participante nenhum, invisível para todos e com o histórico preso
-no banco. E a comparação `EquipeId` é sempre feita com o `Guid` aberto antes da consulta
-(`if (sala.EquipeId is not Guid equipeId)`): o EF Core compensa a semântica de nulo do
-SQL, então comparar duas colunas nulas daria o canal órfão para toda a liderança.
+Apagar a equipe apaga o canal e as mensagens junto (`Cascade` no `AppDbContext`).
 
 ### Histórico paginado
 
 `GET /api/salas/{id}/mensagens` aceita `?antesDe=<data>` e devolve o pedaço
-imediatamente anterior ao cursor, apoiado no índice `(SalaId, EnviadaEm)` que já existia.
-A resposta continua sendo um array puro: "ainda tem mais" se descobre pela contagem —
-veio a página cheia, pode haver mais. Um envelope `{ itens, temMais }` mudaria o contrato
-para dar um sinal que o tamanho da resposta já dá.
+imediatamente anterior ao cursor, apoiado no índice `(SalaId, EnviadaEm)`. A resposta é
+`{ itens, temMais }`, igual à do feed: o servidor busca um item a mais que o limite só para
+saber se existe página anterior.
 
 No front, quem altera a lista de mensagens declara para onde o histórico deve rolar
 (`modoScroll`): mensagem nova entra no fim e puxa a leitura para baixo; página antiga
@@ -302,6 +301,12 @@ dezenas de vezes antes do próximo render.
 
 Código de 6 dígitos do **Google Authenticator** (TOTP), pelo provedor que já vem no
 ASP.NET Core Identity. Não usa nenhum serviço do Google: a chave fica no banco e no celular.
+
+**Por que não Login com Google?** O documento de escopo previa OAuth com o Google, mas a
+equipe optou pelo TOTP: o acesso fica inteiramente empresarial, sem vínculo com a conta
+Google pessoal de ninguém, e funciona em empresas que não usam Google Workspace — o
+público-alvo são empresas pequenas e médias. Qualquer app autenticador (Google, Microsoft,
+Authy) serve.
 
 - **Gerente e Diretor:** obrigatório. No primeiro login após a senha, a tela já mostra o
   QR code para cadastrar. A regra está em `Permissoes.ExigeDoisFatores`.

@@ -16,49 +16,24 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     [HttpGet]
     public async Task<ActionResult<IEnumerable<EquipeDto>>> Listar()
     {
-        var equipes = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .OrderBy(e => e.Nome)
-            .ToListAsync();
-
-        return Ok(equipes.Select(Mapear));
+        var equipes = await EquipesCompletas().OrderBy(e => e.Nome).ToListAsync();
+        return Ok(equipes.Select(EquipeDto.De));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<EquipeDto>> Obter(Guid id)
-    {
-        var equipe = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        return equipe is null ? NotFound(new { erro = "Equipe nao encontrada." }) : Ok(Mapear(equipe));
-    }
-
-    /// <summary>Monta o organograma inteiro em uma chamada so — evita o front
-    /// ter que cruzar /equipes com /cargos para desenhar a arvore.</summary>
+    /// <summary>Organograma inteiro numa chamada so.</summary>
     [HttpGet("arvore")]
     public async Task<ActionResult<ArvoreOrganizacionalDto>> Arvore()
     {
         var usuarios = await db.Users.Include(u => u.Cargo).ToListAsync();
-        var equipes = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .OrderBy(e => e.Nome)
-            .ToListAsync();
+        var equipes = await EquipesCompletas().OrderBy(e => e.Nome).ToListAsync();
 
-        // Diretor e gerente ficam no topo, fora das equipes. Antes so o
-        // gerente era tratado assim e o diretor caia no balde "sem equipe".
-        var lideranca = usuarios
-            .Where(EstaNaLideranca)
-            .Select(MapeamentoOrganizacao.ParaResumo);
-
+        // Diretor e gerente ficam no topo, fora das equipes.
+        var lideranca = usuarios.Where(EstaNaLideranca).Select(MembroResumoDto.De);
         var semEquipe = usuarios
             .Where(u => u.EquipeId is null && !EstaNaLideranca(u))
-            .Select(MapeamentoOrganizacao.ParaResumo);
+            .Select(MembroResumoDto.De);
 
-        return Ok(new ArvoreOrganizacionalDto(lideranca, equipes.Select(Mapear), semEquipe));
+        return Ok(new ArvoreOrganizacionalDto(lideranca, equipes.Select(EquipeDto.De), semEquipe));
     }
 
     [HttpPost]
@@ -105,14 +80,7 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         var equipe = await db.Equipes.FindAsync(id);
         if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
 
-        // O canal morre com a equipe: participante do canal e quem esta na
-        // equipe, entao sem equipe a sala ficaria sem ninguem e invisivel para
-        // sempre, com as mensagens presas no banco. O cascade leva o historico.
-        var canal = await db.Salas
-            .FirstOrDefaultAsync(s => s.Tipo == TipoSala.Grupo && s.EquipeId == id);
-        if (canal is not null) db.Salas.Remove(canal);
-
-        // Membros ficam sem equipe (SetNull) em vez de serem apagados junto.
+        // O banco leva junto o canal e as mensagens; os membros ficam sem equipe.
         db.Equipes.Remove(equipe);
         await db.SaveChangesAsync();
 
@@ -122,7 +90,6 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     [HttpPost("{id:guid}/membros")]
     public async Task<ActionResult<EquipeDto>> AdicionarMembro(Guid id, AdicionarMembroDto dto)
     {
-        // Gerente para cima mexe em qualquer equipe; o supervisor, so na dele.
         if (!await permissoes.PodeGerenciarMembrosAsync(id))
             return Forbid();
 
@@ -156,19 +123,11 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
     /// <summary>Diretoria e gerencia nao pertencem a uma equipe: lideram todas.</summary>
     private static bool EstaNaLideranca(Usuario u) => u.Cargo?.Nivel <= NivelHierarquico.Gerente;
 
-    private async Task<EquipeDto> ObterMapeadaAsync(Guid id)
-    {
-        var equipe = await db.Equipes
-            .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
-            .Include(e => e.Membros).ThenInclude(m => m.Cargo)
-            .FirstAsync(e => e.Id == id);
+    /// <summary>Equipe com supervisor e membros (e o cargo de cada um).</summary>
+    private IQueryable<Equipe> EquipesCompletas() => db.Equipes
+        .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
+        .Include(e => e.Membros).ThenInclude(m => m.Cargo);
 
-        return Mapear(equipe);
-    }
-
-    private static EquipeDto Mapear(Equipe e) => new(
-        e.Id,
-        e.Nome,
-        e.Supervisor is null ? null : MapeamentoOrganizacao.ParaResumo(e.Supervisor),
-        e.Membros.Select(MapeamentoOrganizacao.ParaResumo));
+    private async Task<EquipeDto> ObterMapeadaAsync(Guid id) =>
+        EquipeDto.De(await EquipesCompletas().FirstAsync(e => e.Id == id));
 }

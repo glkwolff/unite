@@ -16,11 +16,7 @@ public class PostagemEntradaDto
     public bool Institucional { get; set; }
 }
 
-/// <summary>
-/// Uma postagem como o feed desenha. Os campos "Pode..." ja vem calculados
-/// pelo servidor: assim o front nao precisa replicar regras que dependem do
-/// nivel do autor e do leitor.
-/// </summary>
+/// <summary>Postagem como o feed desenha. Os "Pode..." vem calculados pelo servidor.</summary>
 public record PostagemDto(
     Guid Id,
     string Titulo,
@@ -37,8 +33,5 @@ public record PostagemDto(
 /// <summary>Uma linha da lista "quem marcou Ciente".</summary>
 public record CienciaDto(MembroResumoDto Usuario, DateTime ConfirmadaEm);
 
-/// <summary>
-/// Uma pagina do feed. Para buscar a proxima, o front manda a data da ultima
-/// postagem recebida em <c>?antes=</c>.
-/// </summary>
+/// <summary>Uma pagina do feed. Para a proxima: ?antes= a data da ultima recebida.</summary>
 public record PaginaFeedDto(IEnumerable<PostagemDto> Itens, bool TemMais);

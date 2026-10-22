@@ -10,6 +10,7 @@ import {
   urlArquivo,
   type Mensagem,
   type MembroResumo,
+  type PaginaMensagens,
   type SalaResumo,
 } from "../api/client";
 import { useAuth } from "../auth/useAuth";
@@ -18,9 +19,7 @@ import { iniciais } from "../lib/iniciais";
 
 const SEM_TEMPO_REAL = "Sem conexao em tempo real. Recarregue a pagina.";
 
-// Tamanho da pagina do historico, usado na primeira carga e em cada rolagem
-// para cima. Fica aqui, e nao solto nas chamadas, porque o mesmo numero
-// responde "ainda tem mais?": veio a pagina cheia, pode ter mais.
+// Mensagens por pagina do historico.
 const PAGINA = 50;
 
 export function Chat() {
@@ -123,13 +122,11 @@ export function Chat() {
     setModoScroll("fim");
     setTemMais(false);
     try {
-      const pagina = await api.get<Mensagem[]>(
+      const pagina = await api.get<PaginaMensagens>(
         `/api/salas/${sala.id}/mensagens?limite=${PAGINA}`,
       );
-      setMensagens(pagina);
-      // Veio a pagina cheia: pode haver conversa mais antiga. Veio menos, e
-      // porque chegamos ao comeco — e por isso a rota nao precisou de envelope.
-      setTemMais(pagina.length === PAGINA);
+      setMensagens(pagina.itens);
+      setTemMais(pagina.temMais);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Nao foi possivel abrir a conversa.");
     }
@@ -145,17 +142,17 @@ export function Chat() {
       // Passar por new Date(...).toISOString() acrescentaria o fuso e deslocaria
       // o cursor — o front pularia ou repetiria horas de conversa.
       const cursor = encodeURIComponent(mensagens[0].enviadaEm);
-      const antigas = await api.get<Mensagem[]>(
+      const antigas = await api.get<PaginaMensagens>(
         `/api/salas/${salaAberta.id}/mensagens?limite=${PAGINA}&antesDe=${cursor}`,
       );
 
-      setTemMais(antigas.length === PAGINA);
+      setTemMais(antigas.temMais);
       setModoScroll("manter");
       setMensagens((atuais) => {
         // Guarda contra o mesmo pedaco entrar duas vezes, se dois disparos de
         // rolagem se cruzarem. O id e o unico identificador confiavel aqui.
         const jaTenho = new Set(atuais.map((m) => m.id));
-        return [...antigas.filter((m) => !jaTenho.has(m.id)), ...atuais];
+        return [...antigas.itens.filter((m) => !jaTenho.has(m.id)), ...atuais];
       });
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Nao foi possivel carregar o historico.");

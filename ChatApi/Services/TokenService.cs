@@ -8,29 +8,20 @@ namespace ChatApi.Services;
 
 public class TokenService(IConfiguration config)
 {
-    public const string ClaimNivel = "nivel";
-
-    /// <summary>
-    /// O claim "nivel" e uma conveniencia para o front decidir o que desenhar.
-    /// Autorizacao nao se apoia nele: <see cref="Permissoes"/> le o cargo do
-    /// banco, senao uma promocao ou rebaixamento so valeria no proximo login.
-    /// </summary>
-    public (string Token, DateTime ExpiraEm) Gerar(Usuario usuario, NivelHierarquico? nivel)
+    /// <summary>JWT de 8 h so com id, e-mail e nome. O nivel nao vai no token: e lido do banco.</summary>
+    public (string Token, DateTime ExpiraEm) Gerar(Usuario usuario)
     {
         var chave = config["Jwt:Chave"]
             ?? throw new InvalidOperationException("Jwt:Chave nao configurada.");
         var emissor = config["Jwt:Emissor"] ?? "unite";
         var expiraEm = DateTime.UtcNow.AddHours(8);
 
-        var claims = new List<Claim>
-        {
+        Claim[] claims =
+        [
             new("sub", usuario.Id.ToString()),
             new("email", usuario.Email ?? string.Empty),
             new("name", usuario.NomeCompleto)
-        };
-
-        if (nivel is not null)
-            claims.Add(new Claim(ClaimNivel, nivel.Value.ToString()));
+        ];
 
         var descritor = new SecurityTokenDescriptor
         {

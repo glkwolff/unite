@@ -14,11 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 const string PoliticaCors = "front";
 
-// ---------------------------------------------------------------- banco
+// ---- banco
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseSqlite(builder.Configuration.GetConnectionString("Padrao") ?? "Data Source=chat.db"));
 
-// ------------------------------------------------------------- identity
+// ---- identity
 builder.Services
     .AddIdentityCore<Usuario>(o =>
     {
@@ -28,13 +28,11 @@ builder.Services
         o.Password.RequireUppercase = false;
         o.Password.RequireDigit = false;
     })
-    .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<AppDbContext>()
-    // Codigos de 6 digitos (TOTP) do Google Authenticator. O IdentityCore nao
-    // registra nenhum provedor de token sozinho.
+    // Codigos TOTP do Google Authenticator (o IdentityCore nao registra provedor sozinho).
     .AddTokenProvider<AuthenticatorTokenProvider<Usuario>>(TokenOptions.DefaultAuthenticatorProvider);
 
-// ------------------------------------------------------------------ jwt
+// ---- jwt
 var chaveJwt = builder.Configuration["Jwt:Chave"];
 if (string.IsNullOrWhiteSpace(chaveJwt))
 {
@@ -47,7 +45,7 @@ var emissor = builder.Configuration["Jwt:Emissor"] ?? "unite";
 
 builder.Services.AddSingleton<TokenService>();
 
-// Quem pode o que (RF11). Scoped: guarda o usuario logado durante a requisicao.
+// Scoped: guarda o usuario logado durante a requisicao.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Permissoes>();
 
@@ -55,7 +53,7 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
-        // Sem o mapeamento legado os claims chegam com o nome que foram emitidos.
+        // Claims chegam com o nome original ("sub", "name").
         o.MapInboundClaims = false;
 
         o.TokenValidationParameters = new TokenValidationParameters
@@ -68,12 +66,10 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(chaveJwt)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),
-            NameClaimType = "name",
-            RoleClaimType = "role"
+            NameClaimType = "name"
         };
 
-        // O WebSocket do SignalR nao envia header Authorization: o token vem
-        // na query string. Vale para o ChatHub, mapeado em /chat.
+        // WebSocket nao manda header: no /chat o token vem na query string.
         o.Events = new JwtBearerEvents
         {
             OnMessageReceived = ctx =>
@@ -91,9 +87,8 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// ----------------------------------------------------------------- cors
-// AllowCredentials e incompativel com AllowAnyOrigin: a origem do front
-// precisa ser explicita.
+// ---- cors
+// AllowCredentials (SignalR) exige a origem do front explicita.
 builder.Services.AddCors(o => o.AddPolicy(PoliticaCors, p => p
     .WithOrigins(builder.Configuration["Front:Origem"] ?? "http://localhost:5173")
     .AllowAnyHeader()
@@ -105,9 +100,9 @@ builder.Services
     // Sem isto o NivelHierarquico chega no front como 1/2/3 em vez de "Gerente".
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// ---------------------------------------------------------------- signalr
+// ---- signalr
 builder.Services.AddSignalR();
-// Sem isto o Clients.Users(...) nao acharia ninguem: ver ProvedorIdUsuario.
+// Clients.Users(...) acha a pessoa pela claim "sub".
 builder.Services.AddSingleton<IUserIdProvider, ProvedorIdUsuario>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -115,15 +110,14 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ------------------------------------------------- migrations e modo WAL
+// ---- migrations e modo WAL
 using (var escopo = app.Services.CreateScope())
 {
     var db = escopo.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-    // WAL: leitor nao bloqueia escritor. E persistente no arquivo do banco.
+    // WAL: leitura nao bloqueia escrita.
     db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
-    // Base nova precisa ter os quatro cargos padrao para o primeiro usuario
-    // poder virar diretor no registro.
+    // Base vazia ganha os 4 cargos padrao (o primeiro cadastro vira Diretor).
     await SeedCargos.GarantirAsync(db);
 }
 
@@ -133,8 +127,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Fotos de perfil ficam em wwwroot/uploads e sao servidas como arquivo
-// estatico direto — sem controller/stream proprio para isso.
+// Fotos de perfil: arquivo estatico em wwwroot/uploads.
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads", "perfis"));
 
 app.UseCors(PoliticaCors);
@@ -146,5 +139,5 @@ app.MapHub<ChatHub>("/chat");
 
 app.Run();
 
-// Necessario para o WebApplicationFactory dos testes de integracao (05/11).
+// Para o WebApplicationFactory dos testes de integracao.
 public partial class Program { }
