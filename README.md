@@ -18,7 +18,7 @@ Trabalho da disciplina de Planejamento de Projeto de Sistema Visual — defesa e
 | Dados | SQLite em modo WAL · Entity Framework Core 8 |
 | Autenticação | ASP.NET Core Identity · JWT · 2FA com Google Authenticator (TOTP) |
 | Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 |
-| Testes | xUnit · WebApplicationFactory *(a partir de 05/11)* |
+| Testes | xUnit · WebApplicationFactory · SQLite temporário por classe de teste |
 
 .NET 8 e não o 10 previsto no escopo: é a versão instalada nos computadores da faculdade.
 
@@ -108,7 +108,41 @@ chat-web/src/
 ├── lib/hubChat.ts                  conexão SignalR de leitura do chat
 └── pages/                          Login, Cadastro, Feed, Perfil, Equipes,
                                     Pessoas, Chat
+
+ChatApi.Tests/
+├── Apoio/UniteFactory.cs           sobe a API em memória com um SQLite temporário
+├── Apoio/Ambiente.cs               banco novo com diretor logado; cria contas por nível
+├── Apoio/Totp.cs                   faz o papel do Google Authenticator (RFC 6238)
+├── AutenticacaoTestes.cs           cadastro, login, JWT e 2FA
+├── OrganizacaoTestes.cs            cargos, equipes, membros e atribuição de cargo
+├── FeedTestes.cs                   feed, paginação e botão "Ciente"
+├── ChatTestes.cs                   privada, canal da equipe, histórico e SignalR
+└── PerfilTestes.cs                 nome e foto de perfil
 ```
+
+---
+
+## Testes
+
+```bash
+dotnet test
+```
+
+São testes de **integração**: cada classe sobe a API inteira num `TestServer`
+(`WebApplicationFactory<Program>`) com um banco SQLite só dela, numa pasta temporária que
+some no fim. Nada é substituído por dublê: as migrations rodam, o Identity grava a chave do
+2FA, o SignalR entrega a mensagem. A chave do JWT vem da própria fábrica, então os testes não
+dependem de `user-secrets`.
+
+O `Ambiente` é o ponto de partida de todo teste: ele cadastra a primeira conta (que vira
+Diretor), passa pelo 2FA e expõe `CriarContaAsync(nivel)`, que cadastra alguém, dá o cargo
+pelo diretor e faz o login completo, inclusive o código do Authenticator quando o cargo exige.
+O código é calculado em `Apoio/Totp.cs` a partir da chave que a API devolve no QR code, o
+mesmo cálculo do aplicativo no celular.
+
+As contas usam e-mails aleatórios, então os testes de uma mesma classe compartilham o banco
+sem enxergar uns aos outros. O SignalR usa *long polling* porque o `TestServer` não fala
+WebSocket; o caminho de autenticação pela query string (`?access_token=`) é o mesmo.
 
 ---
 
@@ -330,6 +364,6 @@ Authy) serve.
 | 15/10 | Feed de notícias | ✅ |
 | 22/10 | Botão "Ciente" | ✅ (adiantado) |
 | 29/10 | 2FA com Google Authenticator | ✅ (adiantado) |
-| 05/11 | Testes de integração | — |
+| 05/11 | Testes de integração | ✅ (adiantado) |
 | 12/11 | Ajustes finais | — |
 | 19/11 | Defesa do código | — |
