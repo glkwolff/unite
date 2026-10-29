@@ -3,11 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace ChatApi.Data;
 
-/// <summary>
-/// Usado apenas pelo "dotnet ef" em tempo de design. Sem esta fabrica o EF
-/// precisaria subir o host da aplicacao, que exige a chave JWT configurada —
-/// e migrations nao deveriam depender de segredo nenhum.
-/// </summary>
+/// <summary>So para o "dotnet ef": gera migrations sem precisar da chave JWT.</summary>
 public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
     public AppDbContext CreateDbContext(string[] args)

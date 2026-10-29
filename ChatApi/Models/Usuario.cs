@@ -16,6 +16,4 @@ public class Usuario : IdentityUser<Guid>
 
     public Guid? EquipeId { get; set; }
     public Equipe? Equipe { get; set; }
-
-    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
 }

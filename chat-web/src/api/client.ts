@@ -90,6 +90,11 @@ export interface Mensagem {
   enviadaEm: string;
 }
 
+export interface PaginaMensagens {
+  itens: Mensagem[];
+  temMais: boolean;
+}
+
 export interface Postagem {
   id: string;
   titulo: string;

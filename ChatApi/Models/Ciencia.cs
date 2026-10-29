@@ -1,13 +1,8 @@
 namespace ChatApi.Models;
 
-/// <summary>
-/// Registro do botao "Ciente": confirma que o colaborador leu a postagem.
-/// Um usuario so pode estar ciente uma vez por postagem (indice unico).
-/// </summary>
+/// <summary>Botao "Ciente": a pessoa confirmou que leu a postagem. Chave = (PostagemId, UsuarioId).</summary>
 public class Ciencia
 {
-    public Guid Id { get; set; }
-
     public Guid PostagemId { get; set; }
     public Postagem Postagem { get; set; } = null!;
 

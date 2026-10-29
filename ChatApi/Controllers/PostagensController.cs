@@ -8,11 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-/// <summary>
-/// Feed de noticias e botao "Ciente": qualquer autenticado le e marca ciente;
-/// publicar, remover e ver quem marcou dependem do nivel hierarquico (regras
-/// em <see cref="Permissoes"/>).
-/// </summary>
+/// <summary>Feed de noticias e botao "Ciente". As regras de quem pode o que estao em Permissoes.</summary>
 [Authorize]
 [ApiController]
 [Route("api/postagens")]
@@ -21,12 +17,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
     private const int LimitePadrao = 20;
     private const int LimiteMaximo = 50;
 
-    /// <summary>
-    /// Feed em ordem cronologica, da mais recente para a mais antiga.
-    /// Paginacao por cursor: <paramref name="antes"/> e a data da ultima
-    /// postagem que o front ja tem. Diferente de ?pagina=2, nao repete nem
-    /// pula itens quando alguem publica enquanto o usuario rola a tela.
-    /// </summary>
+    /// <summary>Feed do mais novo ao mais antigo. Proxima pagina: ?antes= a data da ultima recebida.</summary>
     [HttpGet]
     public async Task<ActionResult<PaginaFeedDto>> Listar(
         [FromQuery] DateTimeOffset? antes,
@@ -57,28 +48,14 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         return Ok(new PaginaFeedDto(await MontarAsync(pagina), temMais));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<PostagemDto>> Obter(Guid id)
-    {
-        var postagem = await BuscarComAutorAsync(id);
-        if (postagem is null) return NotFound(new { erro = "Postagem nao encontrada." });
-
-        return Ok((await MontarAsync([postagem]))[0]);
-    }
-
     [HttpPost]
     public async Task<ActionResult<PostagemDto>> Publicar(PostagemEntradaDto dto)
     {
         if (!await permissoes.PodePublicarAsync())
             return Forbid();
 
-        // Conferido separado para devolver o motivo: o supervisor pode publicar,
-        // so nao pode marcar como institucional.
         if (dto.Institucional && !await permissoes.PodePublicarInstitucionalAsync())
-            return StatusCode(StatusCodes.Status403Forbidden, new
-            {
-                erro = "Somente gerente ou diretor publicam avisos institucionais."
-            });
+            return Forbid();
 
         var autor = await permissoes.UsuarioAtualAsync();
         if (autor is null) return Unauthorized();
@@ -96,7 +73,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         db.Postagens.Add(postagem);
         await db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(Obter), new { id = postagem.Id }, (await MontarAsync([postagem]))[0]);
+        return Ok((await MontarAsync([postagem]))[0]);
     }
 
     [HttpDelete("{id:guid}")]
@@ -108,20 +85,15 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         if (!await permissoes.PodeRemoverPostagemAsync(postagem))
             return Forbid();
 
-        // As ciencias da postagem vao junto (Cascade no AppDbContext).
         db.Postagens.Remove(postagem);
         await db.SaveChangesAsync();
 
         return NoContent();
     }
 
-    // ---------------------------------------------------------------- ciente
+    // ---- ciente
 
-    /// <summary>
-    /// Marca "Ciente". Nao tem desfazer: e uma confirmacao de leitura, e quem
-    /// cobra a leitura precisa poder confiar nela. Marcar de novo nao e erro —
-    /// devolve a postagem como esta (duplo clique, duas abas abertas).
-    /// </summary>
+    /// <summary>Marca "Ciente" (nao tem desfazer). Marcar de novo nao e erro.</summary>
     [HttpPost("{id:guid}/ciente")]
     public async Task<ActionResult<PostagemDto>> MarcarCiente(Guid id)
     {
@@ -143,19 +115,14 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
             }
             catch (DbUpdateException)
             {
-                // Dois cliques simultaneos: o indice unico barrou o segundo.
-                // O resultado e o mesmo — a pessoa esta ciente.
+                // Dois cliques ao mesmo tempo: a chave barrou o segundo, a pessoa ja esta ciente.
             }
         }
 
         return Ok((await MontarAsync([postagem]))[0]);
     }
 
-    /// <summary>
-    /// Quem marcou "Ciente", na ordem em que marcou. Diretor ve tudo; gerente
-    /// ve as postagens de supervisores e funcionarios (e as proprias);
-    /// supervisor ve so as proprias, e nelas so os funcionarios.
-    /// </summary>
+    /// <summary>Quem marcou "Ciente" e quando (quem ve o que: Permissoes).</summary>
     [HttpGet("{id:guid}/ciencias")]
     public async Task<ActionResult<IEnumerable<CienciaDto>>> ListarCiencias(Guid id)
     {
@@ -176,25 +143,21 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         {
             if (await permissoes.PodeVerLeitorAsync(c.Usuario.Cargo?.Nivel))
                 visiveis.Add(new CienciaDto(
-                    MapeamentoOrganizacao.ParaResumo(c.Usuario),
+                    MembroResumoDto.De(c.Usuario),
                     c.ConfirmadaEm));
         }
 
         return Ok(visiveis);
     }
 
-    // ------------------------------------------------------------ auxiliares
+    // ---- apoio
 
     private Task<Postagem?> BuscarComAutorAsync(Guid id) =>
         db.Postagens
             .Include(p => p.Autor).ThenInclude(a => a.Cargo)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-    /// <summary>
-    /// Transforma postagens (com Autor.Cargo carregado) em DTOs. As ciencias de
-    /// todas elas vem numa consulta so — sem isso cada pagina do feed faria
-    /// uma consulta por postagem.
-    /// </summary>
+    /// <summary>Postagens (com Autor.Cargo) viram DTO; as ciencias de todas vem numa consulta so.</summary>
     private async Task<List<PostagemDto>> MontarAsync(IReadOnlyList<Postagem> postagens)
     {
         var ids = postagens.Select(p => p.Id).ToList();
@@ -234,7 +197,7 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
                 p.Conteudo,
                 p.Institucional,
                 p.PublicadaEm,
-                MapeamentoOrganizacao.ParaResumo(p.Autor),
+                MembroResumoDto.De(p.Autor),
                 await permissoes.PodeRemoverPostagemAsync(p),
                 minha is null ? null : minha.ConfirmadaEm,
                 permissoes.PodeMarcarCiente(p),

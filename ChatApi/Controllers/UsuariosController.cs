@@ -13,9 +13,7 @@ namespace ChatApi.Controllers;
 [Route("api/usuarios")]
 public class UsuariosController(AppDbContext db, Permissoes permissoes) : ControllerBase
 {
-    /// <summary>Lista enxuta (sem e-mail) usada nos formularios de cargos e
-    /// equipes e na tela de pessoas. Endpoints de perfil continuam sendo a
-    /// fonte para dados sensiveis.</summary>
+    /// <summary>Lista de pessoas (sem e-mail).</summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PessoaDto>>> Listar()
     {
@@ -25,11 +23,10 @@ public class UsuariosController(AppDbContext db, Permissoes permissoes) : Contro
             .OrderBy(u => u.NomeCompleto)
             .ToListAsync();
 
-        return Ok(usuarios.Select(MapeamentoOrganizacao.ParaPessoa));
+        return Ok(usuarios.Select(PessoaDto.De));
     }
 
-    /// <summary>Atribui (ou remove, com CargoId nulo) o cargo de uma pessoa.
-    /// Quem pode fazer o que esta em <see cref="Permissoes.PodeAtribuirAsync"/>.</summary>
+    /// <summary>Atribui o cargo de uma pessoa (CargoId nulo tira o cargo).</summary>
     [HttpPut("{id:guid}/cargo")]
     public async Task<ActionResult<PessoaDto>> AtribuirCargo(Guid id, AtribuirCargoDto dto)
     {
@@ -59,14 +56,10 @@ public class UsuariosController(AppDbContext db, Permissoes permissoes) : Contro
         alvo.Cargo = novoCargo;
         await db.SaveChangesAsync();
 
-        return Ok(MapeamentoOrganizacao.ParaPessoa(alvo));
+        return Ok(PessoaDto.De(alvo));
     }
 
-    /// <summary>
-    /// Sem nenhum diretor ninguem consegue mais gerenciar cargos, e a unica
-    /// saida seria apagar o banco. Um diretor pode se rebaixar — desde que
-    /// exista outro.
-    /// </summary>
+    /// <summary>O ultimo diretor nao perde o cargo: sem diretor, ninguem mais gerencia cargos.</summary>
     private async Task<bool> DeixariaSemDiretorAsync(Usuario alvo, Cargo? novoCargo)
     {
         if (alvo.Cargo?.Nivel != NivelHierarquico.Diretor) return false;
