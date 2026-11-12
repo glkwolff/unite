@@ -29,6 +29,7 @@ public static class SeedDemo
 
     private static readonly Pessoa[] Pessoas =
     [
+        new("teste", "Usuário Teste", "Diretor"),
         new("helena.duarte", "Helena Duarte", "Diretor"),
         new("ricardo.almeida", "Ricardo Almeida", "Gerente"),
         new("patricia.nogueira", "Patrícia Nogueira", "Gerente"),

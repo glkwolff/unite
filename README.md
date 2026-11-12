@@ -80,13 +80,13 @@ dotnet run -- --seed-demo    # semeia, se a base ainda nao tem usuarios
 dotnet run -- --reset-demo   # APAGA o chat.db e semeia do zero (bom para ensaiar)
 ```
 
-Cria uma empresa fictícia: 16 pessoas nos quatro níveis, três equipes (Vendas, Suporte ao
+Cria uma empresa fictícia: 17 pessoas nos quatro níveis, três equipes (Vendas, Suporte ao
 Cliente e Desenvolvimento) com supervisor e canal, 8 avisos no feed com "Ciente" já marcados
 e conversas privadas. **Senha de todos: `unite123`**; a lista de logins sai no console.
 
 | Para mostrar | Entre como |
 | --- | --- |
-| 2FA obrigatório (QR code no 1º login) | `helena.duarte@unite.demo` (Diretor) ou `ricardo.almeida@unite.demo` (Gerente) |
+| 2FA obrigatório (QR code no 1º login) | `teste@unite.demo` ou `helena.duarte@unite.demo` (Diretor) ou `ricardo.almeida@unite.demo` (Gerente) |
 | Publicar aviso, gerenciar a própria equipe | `bruno.carvalho@unite.demo` (Supervisor de Vendas) |
 | Feed, botão "Ciente", canal e chat privado | `camila.rocha@unite.demo` (Vendas) — os avisos recentes estão sem "Ciente" |
 | Atribuir cargo e equipe | `lucas.fernandes@unite.demo` está sem cargo nem equipe |
