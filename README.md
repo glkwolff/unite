@@ -72,6 +72,27 @@ npm run dev
 A interface sobe em **http://localhost:5173**. Se a API estiver em outra porta, copie
 `.env.example` para `.env` e ajuste `VITE_API_URL`.
 
+### 3. Dados de demonstração (opcional)
+
+```bash
+cd ChatApi
+dotnet run -- --seed-demo    # semeia, se a base ainda nao tem usuarios
+dotnet run -- --reset-demo   # APAGA o chat.db e semeia do zero (bom para ensaiar)
+```
+
+Cria uma empresa fictícia: 17 pessoas nos quatro níveis, três equipes (Vendas, Suporte ao
+Cliente e Desenvolvimento) com supervisor e canal, 8 avisos no feed com "Ciente" já marcados
+e conversas privadas. **Senha de todos: `unite123`**; a lista de logins sai no console.
+
+| Para mostrar | Entre como |
+| --- | --- |
+| 2FA obrigatório (QR code no 1º login) | `teste@unite.demo` ou `helena.duarte@unite.demo` (Diretor) ou `ricardo.almeida@unite.demo` (Gerente) |
+| Publicar aviso, gerenciar a própria equipe | `bruno.carvalho@unite.demo` (Supervisor de Vendas) |
+| Feed, botão "Ciente", canal e chat privado | `camila.rocha@unite.demo` (Vendas) — os avisos recentes estão sem "Ciente" |
+| Atribuir cargo e equipe | `lucas.fernandes@unite.demo` está sem cargo nem equipe |
+
+Sem as flags o startup é o de sempre, e os testes nunca passam pelo seed.
+
 ---
 
 ## Estrutura
@@ -89,6 +110,7 @@ ChatApi/
 ├── Data/AppDbContext.cs               chaves, índices, delete e datas em UTC
 ├── Data/AppDbContextFactory.cs        usado só pelo dotnet ef
 ├── Data/SeedCargos.cs                 cria os 4 cargos padrão numa base nova
+├── Data/SeedDemo.cs                   empresa fictícia para a apresentação (--seed-demo)
 ├── Models/                            Usuario, Cargo, Equipe, Sala,
 │                                       SalaUsuario, Mensagem, Postagem, Ciencia
 ├── Dtos/                              entrada (com validação) e saída (XxxDto.De)
@@ -117,7 +139,8 @@ ChatApi.Tests/
 ├── OrganizacaoTestes.cs            cargos, equipes, membros e atribuição de cargo
 ├── FeedTestes.cs                   feed, paginação e botão "Ciente"
 ├── ChatTestes.cs                   privada, canal da equipe, histórico e SignalR
-└── PerfilTestes.cs                 nome e foto de perfil
+├── PerfilTestes.cs                 nome e foto de perfil
+└── SeedDemoTestes.cs               a empresa de demonstração sobe e é lida pela API
 ```
 
 ---
