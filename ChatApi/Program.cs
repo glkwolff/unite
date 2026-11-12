@@ -7,10 +7,17 @@ using ChatApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+// Dados de demonstracao: --seed-demo semeia uma base vazia; --reset-demo apaga a base e semeia.
+// Sai de args antes do builder, senao o leitor de linha de comando toma a flag por chave de configuracao.
+string[] flagsDemo = ["--seed-demo", "--reset-demo"];
+var semearDemo = args.Any(flagsDemo.Contains);
+var recriarBase = args.Contains("--reset-demo");
+
+var builder = WebApplication.CreateBuilder(args.Except(flagsDemo).ToArray());
 
 const string PoliticaCors = "front";
 
@@ -114,11 +121,14 @@ var app = builder.Build();
 using (var escopo = app.Services.CreateScope())
 {
     var db = escopo.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (recriarBase) ApagarBase(db);
     db.Database.Migrate();
     // WAL: leitura nao bloqueia escrita.
     db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
     // Base vazia ganha os 4 cargos padrao (o primeiro cadastro vira Diretor).
     await SeedCargos.GarantirAsync(db);
+
+    if (semearDemo) await SeedDemo.ExecutarAsync(escopo.ServiceProvider);
 }
 
 if (app.Environment.IsDevelopment())
@@ -138,6 +148,16 @@ app.MapControllers();
 app.MapHub<ChatHub>("/chat");
 
 app.Run();
+
+// O EnsureDeleted so apaga o .db; um -wal velho seria reaplicado sobre a base nova.
+static void ApagarBase(AppDbContext db)
+{
+    var arquivo = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()).DataSource;
+    db.Database.EnsureDeleted();
+    SqliteConnection.ClearAllPools();
+    foreach (var sufixo in new[] { "-wal", "-shm" })
+        File.Delete(arquivo + sufixo);
+}
 
 // Para o WebApplicationFactory dos testes de integracao.
 public partial class Program { }
