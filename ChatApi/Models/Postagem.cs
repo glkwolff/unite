@@ -14,7 +14,6 @@ public class Postagem
 
     public string Conteudo { get; set; } = string.Empty;
 
-    /// <summary>Aviso institucional: exige permissao para publicar.</summary>
     public bool Institucional { get; set; }
 
     public DateTime PublicadaEm { get; set; } = DateTime.UtcNow;

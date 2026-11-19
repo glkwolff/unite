@@ -23,7 +23,6 @@ public class AuthController(
         if (await usuarios.FindByEmailAsync(dto.Email) is not null)
             return Conflict(new { erro = "Ja existe um usuario com este e-mail." });
 
-        // Primeira conta da base vira Diretor (senao ninguem conseguiria dar cargos).
         var baseVazia = !await db.Users.AnyAsync();
 
         var usuario = new Usuario
@@ -49,7 +48,6 @@ public class AuthController(
         return NoContent();
     }
 
-    /// <summary>Senha e, quando o 2FA vale para a pessoa, o codigo do Authenticator.</summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
@@ -69,7 +67,6 @@ public class AuthController(
             if (usuario.TwoFactorEnabled)
                 return Ok(new SegundaEtapaDto("codigo", null, null));
 
-            // Cargo exige e ainda nao configurou: devolve o QR code
             var (chave, uri) = await ChaveAsync(usuario);
             return Ok(new SegundaEtapaDto("configurar", chave, uri));
         }
@@ -90,8 +87,6 @@ public class AuthController(
         var usuario = await permissoes.UsuarioAtualAsync();
         return usuario is null ? Unauthorized() : Ok(UsuarioDto.De(usuario));
     }
-
-    // ---- 2fa pelo perfil (quem ja esta logado)
 
     [Authorize]
     [HttpPost("2fa/configurar")]
@@ -141,9 +136,6 @@ public class AuthController(
         return Ok(UsuarioDto.De(usuario));
     }
 
-    // ---- apoio
-
-    /// <summary>So gera chave se ainda nao existe: o QR code ja lido continua valendo.</summary>
     private async Task<(string Chave, string Uri)> ChaveAsync(Usuario usuario)
     {
         var chave = await usuarios.GetAuthenticatorKeyAsync(usuario);
@@ -157,7 +149,6 @@ public class AuthController(
         return (chave, uri);
     }
 
-    /// <summary>Nulo se o codigo bate. 5 erros seguidos travam a conta por 5 min (lockout do Identity).</summary>
     private async Task<string?> ConferirCodigoAsync(Usuario usuario, string codigo)
     {
         if (await usuarios.IsLockedOutAsync(usuario))
@@ -176,7 +167,6 @@ public class AuthController(
         return null;
     }
 
-    /// <summary>Exige Cargo e Equipe carregados.</summary>
     private AuthRespostaDto MontarResposta(Usuario usuario)
     {
         var (token, expiraEm) = tokens.Gerar(usuario);

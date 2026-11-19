@@ -5,7 +5,6 @@ using ChatApi.Tests.Apoio;
 
 namespace ChatApi.Tests;
 
-/// <summary>Cargos, equipes, membros e atribuicao de cargo: a tabela de permissoes (RF11).</summary>
 public class OrganizacaoTestes(Ambiente ambiente) : IClassFixture<Ambiente>
 {
     [Fact]

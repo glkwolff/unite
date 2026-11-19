@@ -11,8 +11,6 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
-// Dados de demonstracao: --seed-demo semeia uma base vazia; --reset-demo apaga a base e semeia.
-// Sai de args antes do builder, senao o leitor de linha de comando toma a flag por chave de configuracao.
 string[] flagsDemo = ["--seed-demo", "--reset-demo"];
 var semearDemo = args.Any(flagsDemo.Contains);
 var recriarBase = args.Contains("--reset-demo");
@@ -21,11 +19,9 @@ var builder = WebApplication.CreateBuilder(args.Except(flagsDemo).ToArray());
 
 const string PoliticaCors = "front";
 
-// ---- banco
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseSqlite(builder.Configuration.GetConnectionString("Padrao") ?? "Data Source=chat.db"));
 
-// ---- identity
 builder.Services
     .AddIdentityCore<Usuario>(o =>
     {
@@ -36,10 +32,8 @@ builder.Services
         o.Password.RequireDigit = false;
     })
     .AddEntityFrameworkStores<AppDbContext>()
-    // Codigos TOTP do Google Authenticator (o IdentityCore nao registra provedor sozinho).
     .AddTokenProvider<AuthenticatorTokenProvider<Usuario>>(TokenOptions.DefaultAuthenticatorProvider);
 
-// ---- jwt
 var chaveJwt = builder.Configuration["Jwt:Chave"];
 if (string.IsNullOrWhiteSpace(chaveJwt))
 {
@@ -52,7 +46,6 @@ var emissor = builder.Configuration["Jwt:Emissor"] ?? "unite";
 
 builder.Services.AddSingleton<TokenService>();
 
-// Scoped: guarda o usuario logado durante a requisicao.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Permissoes>();
 
@@ -60,7 +53,6 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
-        // Claims chegam com o nome original ("sub", "name").
         o.MapInboundClaims = false;
 
         o.TokenValidationParameters = new TokenValidationParameters
@@ -76,7 +68,6 @@ builder.Services
             NameClaimType = "name"
         };
 
-        // WebSocket nao manda header: no /chat o token vem na query string.
         o.Events = new JwtBearerEvents
         {
             OnMessageReceived = ctx =>
@@ -94,8 +85,6 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// ---- cors
-// AllowCredentials (SignalR) exige a origem do front explicita.
 builder.Services.AddCors(o => o.AddPolicy(PoliticaCors, p => p
     .WithOrigins(builder.Configuration["Front:Origem"] ?? "http://localhost:5173")
     .AllowAnyHeader()
@@ -104,12 +93,9 @@ builder.Services.AddCors(o => o.AddPolicy(PoliticaCors, p => p
 
 builder.Services
     .AddControllers()
-    // Sem isto o NivelHierarquico chega no front como 1/2/3 em vez de "Gerente".
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// ---- signalr
 builder.Services.AddSignalR();
-// Clients.Users(...) acha a pessoa pela claim "sub".
 builder.Services.AddSingleton<IUserIdProvider, ProvedorIdUsuario>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -117,15 +103,12 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// ---- migrations e modo WAL
 using (var escopo = app.Services.CreateScope())
 {
     var db = escopo.ServiceProvider.GetRequiredService<AppDbContext>();
     if (recriarBase) ApagarBase(db);
     db.Database.Migrate();
-    // WAL: leitura nao bloqueia escrita.
     db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
-    // Base vazia ganha os 4 cargos padrao (o primeiro cadastro vira Diretor).
     await SeedCargos.GarantirAsync(db);
 
     if (semearDemo) await SeedDemo.ExecutarAsync(escopo.ServiceProvider);
@@ -137,7 +120,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Fotos de perfil: arquivo estatico em wwwroot/uploads.
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads", "perfis"));
 
 app.UseCors(PoliticaCors);
@@ -149,7 +131,6 @@ app.MapHub<ChatHub>("/chat");
 
 app.Run();
 
-// O EnsureDeleted so apaga o .db; um -wal velho seria reaplicado sobre a base nova.
 static void ApagarBase(AppDbContext db)
 {
     var arquivo = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()).DataSource;
@@ -159,5 +140,4 @@ static void ApagarBase(AppDbContext db)
         File.Delete(arquivo + sufixo);
 }
 
-// Para o WebApplicationFactory dos testes de integracao.
 public partial class Program { }

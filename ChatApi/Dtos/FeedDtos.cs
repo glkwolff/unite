@@ -12,11 +12,9 @@ public class PostagemEntradaDto
     [MaxLength(5000, ErrorMessage = "O conteudo tem no maximo 5000 caracteres.")]
     public string Conteudo { get; set; } = string.Empty;
 
-    /// <summary>Aviso em nome da empresa: so gerente para cima.</summary>
     public bool Institucional { get; set; }
 }
 
-/// <summary>Postagem como o feed desenha. Os "Pode..." vem calculados pelo servidor.</summary>
 public record PostagemDto(
     Guid Id,
     string Titulo,
@@ -25,13 +23,11 @@ public record PostagemDto(
     DateTime PublicadaEm,
     MembroResumoDto Autor,
     bool PodeRemover,
-    DateTime? CienteEm,      // quando o usuario logado marcou "Ciente"; nulo = ainda nao
-    bool PodeMarcarCiente,   // falso so para o autor da postagem
-    bool PodeVerCiencias,    // pode abrir a lista de quem marcou
-    int? TotalCiencias);     // quantos ele enxerga nessa lista; nulo se nao pode ver
+    DateTime? CienteEm,
+    bool PodeMarcarCiente,
+    bool PodeVerCiencias,
+    int? TotalCiencias);
 
-/// <summary>Uma linha da lista "quem marcou Ciente".</summary>
 public record CienciaDto(MembroResumoDto Usuario, DateTime ConfirmadaEm);
 
-/// <summary>Uma pagina do feed. Para a proxima: ?antes= a data da ultima recebida.</summary>
 public record PaginaFeedDto(IEnumerable<PostagemDto> Itens, bool TemMais);

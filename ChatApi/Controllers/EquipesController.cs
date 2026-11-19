@@ -20,14 +20,12 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         return Ok(equipes.Select(EquipeDto.De));
     }
 
-    /// <summary>Organograma inteiro numa chamada so.</summary>
     [HttpGet("arvore")]
     public async Task<ActionResult<ArvoreOrganizacionalDto>> Arvore()
     {
         var usuarios = await db.Users.Include(u => u.Cargo).ToListAsync();
         var equipes = await EquipesCompletas().OrderBy(e => e.Nome).ToListAsync();
 
-        // Diretor e gerente ficam no topo, fora das equipes.
         var lideranca = usuarios.Where(EstaNaLideranca).Select(MembroResumoDto.De);
         var semEquipe = usuarios
             .Where(u => u.EquipeId is null && !EstaNaLideranca(u))
@@ -80,7 +78,6 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         var equipe = await db.Equipes.FindAsync(id);
         if (equipe is null) return NotFound(new { erro = "Equipe nao encontrada." });
 
-        // O banco leva junto o canal e as mensagens; os membros ficam sem equipe.
         db.Equipes.Remove(equipe);
         await db.SaveChangesAsync();
 
@@ -120,10 +117,8 @@ public class EquipesController(AppDbContext db, Permissoes permissoes) : Control
         return Ok(await ObterMapeadaAsync(id));
     }
 
-    /// <summary>Diretoria e gerencia nao pertencem a uma equipe: lideram todas.</summary>
     private static bool EstaNaLideranca(Usuario u) => u.Cargo?.Nivel <= NivelHierarquico.Gerente;
 
-    /// <summary>Equipe com supervisor e membros (e o cargo de cada um).</summary>
     private IQueryable<Equipe> EquipesCompletas() => db.Equipes
         .Include(e => e.Supervisor).ThenInclude(s => s!.Cargo)
         .Include(e => e.Membros).ThenInclude(m => m.Cargo);

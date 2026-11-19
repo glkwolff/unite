@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ChatApi.Models;
 
-/// <summary>Niveis da arvore de gerenciamento do Unite.</summary>
 public enum NivelHierarquico
 {
     Diretor = 0,

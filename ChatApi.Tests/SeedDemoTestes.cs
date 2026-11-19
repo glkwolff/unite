@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ChatApi.Tests;
 
-/// <summary>A empresa de demonstracao sobe numa base vazia e e lida pela propria API.</summary>
 public class SeedDemoTestes : IDisposable
 {
     private readonly UniteFactory _fabrica = new();
@@ -49,7 +48,6 @@ public class SeedDemoTestes : IDisposable
         var avisos = feed!.Itens.ToList();
         Assert.Equal(8, avisos.Count);
         Assert.Contains(avisos, p => p.Institucional);
-        // Os avisos recentes ficam sem "Ciente" para a conta de apresentacao clicar.
         Assert.Null(avisos[0].CienteEm);
         Assert.True(avisos[0].PodeMarcarCiente);
         using (var escopo = _fabrica.Services.CreateScope())

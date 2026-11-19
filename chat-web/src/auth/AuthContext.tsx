@@ -4,23 +4,18 @@ import { api, token, type AuthResposta, type SegundaEtapa, type Usuario } from '
 interface AuthContexto {
   usuario: Usuario | null
   carregando: boolean
-  /** Nulo quando ja entrou; senao, a etapa do codigo que falta. */
   entrar: (email: string, senha: string, codigo?: string) => Promise<SegundaEtapa | null>
   cadastrar: (nomeCompleto: string, email: string, senha: string) => Promise<void>
   sair: () => void
-  /** Atualiza o usuario em memoria (ex.: apos editar perfil ou trocar foto),
-   * sem precisar relogar para o header refletir a mudanca. */
   atualizarUsuario: (usuario: Usuario) => void
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const ContextoAuth = createContext<AuthContexto | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [carregando, setCarregando] = useState(true)
 
-  // Restaura a sessao quando ja existe token guardado.
   useEffect(() => {
     if (!token.ler()) {
       setCarregando(false)

@@ -6,7 +6,6 @@ import { podePublicar, podePublicarInstitucional } from '../lib/permissoes'
 
 const LIMITE = 20
 
-// "01/10/2026 às 19:52" — no fuso de quem esta lendo.
 const formatoData = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 const formatoHora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
 const formatoCompleto = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full', timeStyle: 'short' })
@@ -16,7 +15,6 @@ function dataEHora(iso: string) {
   return `${formatoData.format(d)} às ${formatoHora.format(d)}`
 }
 
-/** "agora", "há 5 min", "há 3 h" — so nas primeiras 24 horas. Depois a data basta. */
 function relativo(iso: string) {
   const minutos = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
   if (minutos < 1) return 'agora'
@@ -44,7 +42,6 @@ export function Feed() {
       .finally(() => setCarregando(false))
   }, [])
 
-  /** Cursor = data da postagem mais antiga que ja esta na tela. */
   async function carregarMais() {
     const ultima = postagens.at(-1)
     if (!ultima) return
@@ -132,13 +129,10 @@ export function Feed() {
   )
 }
 
-// -------------------------------------------------------------- publicar
-
 function NovoAviso({
   institucionalPermitido,
   aoPublicar,
 }: {
-  /** Aviso institucional: so gerente e diretor. Supervisor nem ve a opcao. */
   institucionalPermitido: boolean
   aoPublicar: (postagem: Postagem) => void
 }) {
@@ -217,8 +211,6 @@ function NovoAviso({
   )
 }
 
-// ----------------------------------------------------------------- cartao
-
 function CartaoPostagem({
   postagem,
   aoRemover,
@@ -226,7 +218,6 @@ function CartaoPostagem({
 }: {
   postagem: Postagem
   aoRemover: () => void
-  /** Troca a postagem na lista depois de marcar "Ciente". */
   aoAtualizar: (postagem: Postagem) => void
 }) {
   const recente = relativo(postagem.publicadaEm)
@@ -321,15 +312,11 @@ function CartaoPostagem({
       )}
 
       {erro && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-
-      {/* key: recarrega a lista quando o total muda (alguem marcou enquanto estava aberta) */}
       {listaAberta && <ListaCiencias key={postagem.totalCiencias ?? 0} postagemId={postagem.id} />}
     </article>
   )
 }
 
-/** Quem marcou "Ciente", na ordem em que marcou. O servidor ja aplica o recorte
- * por nivel — o supervisor, por exemplo, so recebe os funcionarios. */
 function ListaCiencias({ postagemId }: { postagemId: string }) {
   const [ciencias, setCiencias] = useState<Ciencia[] | null>(null)
   const [erro, setErro] = useState<string | null>(null)

@@ -9,7 +9,6 @@ public class Equipe
     [MaxLength(80)]
     public string Nome { get; set; } = string.Empty;
 
-    /// <summary>Supervisor responsavel pela equipe.</summary>
     public Guid? SupervisorId { get; set; }
     public Usuario? Supervisor { get; set; }
 

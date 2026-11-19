@@ -5,7 +5,6 @@ using ChatApi.Tests.Apoio;
 
 namespace ChatApi.Tests;
 
-/// <summary>Feed de noticias, paginacao e o botao "Ciente".</summary>
 public class FeedTestes(Ambiente ambiente) : IClassFixture<Ambiente>
 {
     private static PostagemEntradaDto Aviso(string titulo = "Reuniao", bool institucional = false) =>
@@ -56,7 +55,7 @@ public class FeedTestes(Ambiente ambiente) : IClassFixture<Ambiente>
         for (var i = 1; i <= 5; i++)
         {
             ids.Add((await PublicarAsync(gerente, Aviso($"Aviso {i}"))).Id);
-            await Task.Delay(5); // garante PublicadaEm distinto
+            await Task.Delay(5);
         }
 
         var primeira = await leitor.Cliente.GetAsync<PaginaFeedDto>("/api/postagens?limite=2");
@@ -114,13 +113,11 @@ public class FeedTestes(Ambiente ambiente) : IClassFixture<Ambiente>
         await outroSupervisor.Cliente.PostAsync($"/api/postagens/{doSupervisor.Id}/ciente");
         await funcionario.Cliente.PostAsync($"/api/postagens/{doSupervisor.Id}/ciente");
 
-        // Funcionario: nenhuma. Supervisor: so a propria, e nela so enxerga funcionarios.
         Assert.Equal(HttpStatusCode.Forbidden, (await funcionario.Cliente.GetAsync($"/api/postagens/{doSupervisor.Id}/ciencias")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await supervisor.Cliente.GetAsync($"/api/postagens/{doGerente.Id}/ciencias")).StatusCode);
         var vistasPeloSupervisor = await supervisor.Cliente.GetAsync<List<CienciaDto>>($"/api/postagens/{doSupervisor.Id}/ciencias");
         Assert.Equal([funcionario.Id], vistasPeloSupervisor!.Select(c => c.Usuario.Id));
 
-        // Gerente ve todos os leitores da postagem do supervisor; diretor ve qualquer postagem.
         var vistasPeloGerente = await gerente.Cliente.GetAsync<List<CienciaDto>>($"/api/postagens/{doSupervisor.Id}/ciencias");
         Assert.Equal(2, vistasPeloGerente!.Count);
         Assert.Equal(HttpStatusCode.OK, (await ambiente.Diretor.Cliente.GetAsync($"/api/postagens/{doGerente.Id}/ciencias")).StatusCode);

@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-// Qualquer logado le; so o diretor escreve.
 [Authorize]
 [ApiController]
 [Route("api/cargos")]
@@ -64,7 +63,6 @@ public class CargosController(AppDbContext db, Permissoes permissoes) : Controll
         var cargo = await db.Cargos.FindAsync(id);
         if (cargo is null) return NotFound(new { erro = "Cargo nao encontrado." });
 
-        // Cargo com gente nao sai: apagar o de Diretor deixaria a empresa sem diretoria.
         if (await db.Users.AnyAsync(u => u.CargoId == id))
             return BadRequest(new
             {

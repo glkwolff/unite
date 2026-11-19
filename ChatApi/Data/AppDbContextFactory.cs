@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace ChatApi.Data;
 
-/// <summary>So para o "dotnet ef": gera migrations sem precisar da chave JWT.</summary>
 public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
     public AppDbContext CreateDbContext(string[] args)

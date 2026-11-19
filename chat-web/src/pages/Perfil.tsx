@@ -37,7 +37,7 @@ export function Perfil() {
 
   async function trocarFoto(evento: React.ChangeEvent<HTMLInputElement>) {
     const arquivo = evento.target.files?.[0]
-    evento.target.value = '' // permite escolher o mesmo arquivo de novo depois
+    evento.target.value = ''
     if (!arquivo) return
 
     setErro(null)

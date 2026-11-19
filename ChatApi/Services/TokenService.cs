@@ -8,7 +8,6 @@ namespace ChatApi.Services;
 
 public class TokenService(IConfiguration config)
 {
-    /// <summary>JWT de 8 h so com id, e-mail e nome. O nivel nao vai no token: e lido do banco.</summary>
     public (string Token, DateTime ExpiraEm) Gerar(Usuario usuario)
     {
         var chave = config["Jwt:Chave"]

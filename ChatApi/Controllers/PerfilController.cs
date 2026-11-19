@@ -15,9 +15,8 @@ public class PerfilController(
     Permissoes permissoes,
     IWebHostEnvironment ambiente) : ControllerBase
 {
-    // Guarda so as extensoes que o front realmente exibe como <img>.
     private static readonly string[] ExtensoesPermitidas = [".jpg", ".jpeg", ".png", ".webp"];
-    private const long TamanhoMaximoBytes = 5 * 1024 * 1024; // 5 MB
+    private const long TamanhoMaximoBytes = 5 * 1024 * 1024;
 
     [HttpPut]
     public async Task<ActionResult<UsuarioDto>> Atualizar(AtualizarPerfilDto dto)
@@ -33,7 +32,6 @@ public class PerfilController(
         return Ok(UsuarioDto.De(usuario));
     }
 
-    /// <summary>Recebe multipart/form-data com o campo "arquivo".</summary>
     [HttpPost("foto")]
     [RequestSizeLimit(TamanhoMaximoBytes)]
     public async Task<ActionResult<UsuarioDto>> EnviarFoto(IFormFile? arquivo)
@@ -56,7 +54,6 @@ public class PerfilController(
         var pastaFotos = Path.Combine(pastaWebroot, "uploads", "perfis");
         Directory.CreateDirectory(pastaFotos);
 
-        // Nome fixo por usuario: a foto nova substitui a anterior.
         RemoverFotoAnteriorSeExistir(pastaFotos, usuario.Id);
         var nomeArquivo = $"{usuario.Id}{extensao}";
         var caminhoCompleto = Path.Combine(pastaFotos, nomeArquivo);

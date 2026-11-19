@@ -8,7 +8,6 @@ import { SegundaEtapaLogin } from '../components/SegundaEtapaLogin'
 export function Login() {
   const { entrar } = useAuth()
   const navegar = useNavigate()
-  // Vem do cadastro: "Conta criada..."
   const aviso = (useLocation().state as { aviso?: string } | null)?.aviso
 
   const [email, setEmail] = useState('')

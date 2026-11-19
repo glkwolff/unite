@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace ChatApi.Tests;
 
-/// <summary>Conversa privada, canal da equipe, historico paginado e o aviso pelo SignalR.</summary>
 public class ChatTestes(Ambiente ambiente) : IClassFixture<Ambiente>
 {
     private static async Task<MensagemDto> EnviarAsync(Conta autor, Guid salaId, string texto)
@@ -43,7 +42,7 @@ public class ChatTestes(Ambiente ambiente) : IClassFixture<Ambiente>
     {
         var ana = await ambiente.CriarContaAsync(NivelHierarquico.Funcionario);
         var bia = await ambiente.CriarContaAsync(NivelHierarquico.Funcionario);
-        var gerente = await ambiente.CriarContaAsync(NivelHierarquico.Gerente); // chat nao segue hierarquia
+        var gerente = await ambiente.CriarContaAsync(NivelHierarquico.Gerente);
         var sala = await AbrirPrivadaAsync(ana, bia);
 
         var ler = await gerente.Cliente.GetAsync($"/api/salas/{sala.Id}/mensagens");
@@ -62,7 +61,7 @@ public class ChatTestes(Ambiente ambiente) : IClassFixture<Ambiente>
         for (var i = 1; i <= 5; i++)
         {
             await EnviarAsync(i % 2 == 0 ? bia : ana, sala.Id, $"m{i}");
-            await Task.Delay(5); // garante EnviadaEm distinto
+            await Task.Delay(5);
         }
 
         var fim = await ana.Cliente.GetAsync<PaginaMensagensDto>($"/api/salas/{sala.Id}/mensagens?limite=2");
@@ -93,7 +92,6 @@ public class ChatTestes(Ambiente ambiente) : IClassFixture<Ambiente>
         await EnviarAsync(ana, canalDeAna.Id, "bom dia equipe");
         Assert.Equal(HttpStatusCode.Forbidden, (await deFora.Cliente.GetAsync($"/api/salas/{canalDeAna.Id}/mensagens")).StatusCode);
 
-        // Quem entra na equipe passa a ler; quem sai perde o acesso. Sem religar nada.
         await ambiente.Diretor.Cliente.PostAsync($"/api/equipes/{equipe!.Id}/membros", new AdicionarMembroDto { UsuarioId = deFora.Id });
         var historico = await deFora.Cliente.GetAsync<PaginaMensagensDto>($"/api/salas/{canalDeAna.Id}/mensagens");
         Assert.Equal(["bom dia equipe"], historico!.Itens.Select(m => m.Texto));
@@ -129,7 +127,6 @@ public class ChatTestes(Ambiente ambiente) : IClassFixture<Ambiente>
         Assert.False(caioRecebeu);
     }
 
-    /// <summary>Como o front: token na query string. Long polling porque o TestServer nao fala WebSocket.</summary>
     private HubConnection Conectar(Conta conta)
     {
         var token = conta.Cliente.DefaultRequestHeaders.Authorization!.Parameter;

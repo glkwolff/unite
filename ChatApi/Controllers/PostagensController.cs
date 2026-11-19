@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-/// <summary>Feed de noticias e botao "Ciente". As regras de quem pode o que estao em Permissoes.</summary>
 [Authorize]
 [ApiController]
 [Route("api/postagens")]
@@ -17,7 +16,6 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
     private const int LimitePadrao = 20;
     private const int LimiteMaximo = 50;
 
-    /// <summary>Feed do mais novo ao mais antigo. Proxima pagina: ?antes= a data da ultima recebida.</summary>
     [HttpGet]
     public async Task<ActionResult<PaginaFeedDto>> Listar(
         [FromQuery] DateTimeOffset? antes,
@@ -35,7 +33,6 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
             consulta = consulta.Where(p => p.PublicadaEm < limiteUtc);
         }
 
-        // Busca um a mais so para saber se existe proxima pagina.
         var postagens = await consulta
             .OrderByDescending(p => p.PublicadaEm)
             .ThenByDescending(p => p.Id)
@@ -91,9 +88,6 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         return NoContent();
     }
 
-    // ---- ciente
-
-    /// <summary>Marca "Ciente" (nao tem desfazer). Marcar de novo nao e erro.</summary>
     [HttpPost("{id:guid}/ciente")]
     public async Task<ActionResult<PostagemDto>> MarcarCiente(Guid id)
     {
@@ -115,14 +109,12 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
             }
             catch (DbUpdateException)
             {
-                // Dois cliques ao mesmo tempo: a chave barrou o segundo, a pessoa ja esta ciente.
             }
         }
 
         return Ok((await MontarAsync([postagem]))[0]);
     }
 
-    /// <summary>Quem marcou "Ciente" e quando (quem ve o que: Permissoes).</summary>
     [HttpGet("{id:guid}/ciencias")]
     public async Task<ActionResult<IEnumerable<CienciaDto>>> ListarCiencias(Guid id)
     {
@@ -150,14 +142,11 @@ public class PostagensController(AppDbContext db, Permissoes permissoes) : Contr
         return Ok(visiveis);
     }
 
-    // ---- apoio
-
     private Task<Postagem?> BuscarComAutorAsync(Guid id) =>
         db.Postagens
             .Include(p => p.Autor).ThenInclude(a => a.Cargo)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-    /// <summary>Postagens (com Autor.Cargo) viram DTO; as ciencias de todas vem numa consulta so.</summary>
     private async Task<List<PostagemDto>> MontarAsync(IReadOnlyList<Postagem> postagens)
     {
         var ids = postagens.Select(p => p.Id).ToList();

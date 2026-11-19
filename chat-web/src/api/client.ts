@@ -21,7 +21,6 @@ export interface AuthResposta {
   usuario: Usuario;
 }
 
-/** Senha certa, falta o codigo. Em "configurar" vem a chave do QR code. */
 export interface SegundaEtapa {
   etapa: "codigo" | "configurar";
   chave: string | null;
@@ -62,7 +61,6 @@ export interface Pessoa extends MembroResumo {
 }
 
 export interface ArvoreOrganizacional {
-  /** Diretoria e gerencia: ficam no topo, fora das equipes. */
   lideranca: MembroResumo[];
   equipes: Equipe[];
   semEquipe: MembroResumo[];
@@ -73,9 +71,7 @@ export type TipoSala = "Privada" | "Grupo";
 export interface SalaResumo {
   id: string;
   tipo: TipoSala;
-  /** Montado pelo servidor a cada resposta: nome do outro (privada) ou da equipe (canal). */
   titulo: string;
-  /** Null no canal de equipe: la nao existe "o outro". */
   outro: MembroResumo | null;
   ultimaMensagem: string | null;
   ultimaEm: string | null;
@@ -100,18 +96,12 @@ export interface Postagem {
   titulo: string;
   conteudo: string;
   institucional: boolean;
-  /** ISO 8601 em UTC (com "Z"); o navegador converte para o fuso local. */
   publicadaEm: string;
   autor: MembroResumo;
-  /** Calculado pelo servidor: autor da postagem ou gerente para cima. */
   podeRemover: boolean;
-  /** Quando o usuario logado marcou "Ciente"; null se ainda nao marcou. */
   cienteEm: string | null;
-  /** Falso so para o autor da postagem. */
   podeMarcarCiente: boolean;
-  /** Se pode abrir a lista de quem marcou (regra hierarquica no servidor). */
   podeVerCiencias: boolean;
-  /** Quantos ele enxerga nessa lista; null quando nao pode ver. */
   totalCiencias: number | null;
 }
 
@@ -126,8 +116,6 @@ export interface PaginaFeed {
 }
 
 export class ApiError extends Error {
-  // Campo declarado explicitamente: parameter properties nao passam no
-  // erasableSyntaxOnly que o template do Vite habilita.
   status: number;
 
   constructor(status: number, mensagem: string) {
@@ -152,7 +140,6 @@ async function requisicao<T>(
   const resposta = await fetch(`${BASE}${caminho}`, {
     ...init,
     headers: {
-      // Upload de arquivo define o Content-Type (com boundary) sozinho.
       ...(comCorpoJson ? { "Content-Type": "application/json" } : {}),
       ...(atual ? { Authorization: `Bearer ${atual}` } : {}),
       ...init?.headers,
@@ -165,7 +152,6 @@ async function requisicao<T>(
       const corpo = await resposta.json();
       mensagem = corpo?.erro ?? corpo?.title ?? mensagem;
     } catch {
-      // resposta sem corpo JSON: mantem a mensagem padrao
     }
     throw new ApiError(resposta.status, mensagem);
   }
@@ -193,7 +179,6 @@ export const api = {
   },
 };
 
-/** O SignalR monta a conexao fora do fetch e precisa da URL absoluta. */
 export function urlHub() {
   return `${BASE}/chat`;
 }
