@@ -98,15 +98,12 @@ export function Equipes() {
   );
 }
 
-// --------------------------------------------------------------- cargos
-
 function SecaoCargos({
   cargos,
   editavel,
   comAtualizacao,
 }: {
   cargos: Cargo[];
-  /** So o diretor cadastra cargos; os demais veem a lista em modo leitura. */
   editavel: boolean;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
@@ -190,8 +187,6 @@ function SecaoCargos({
     </section>
   );
 }
-
-// -------------------------------------------------------------- equipes
 
 function SecaoEquipes({
   equipes,
@@ -303,9 +298,7 @@ function CartaoEquipe({
 }: {
   equipe: Equipe;
   usuarios: MembroResumo[];
-  /** Renomear ou excluir a equipe: gerente para cima. */
   podeEditarEquipe: boolean;
-  /** Entrar e sair da equipe: gerente para cima, ou o supervisor dela. */
   podeEditarMembros: boolean;
   comAtualizacao: (acao: () => Promise<unknown>) => Promise<void>;
 }) {
@@ -400,8 +393,6 @@ function CartaoEquipe({
     </div>
   );
 }
-
-// --------------------------------------------------------------- arvore
 
 function SecaoArvore({ arvore }: { arvore: ArvoreOrganizacional }) {
   return (

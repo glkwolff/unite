@@ -1,6 +1,5 @@
 namespace ChatApi.Models;
 
-/// <summary>Botao "Ciente": a pessoa confirmou que leu a postagem. Chave = (PostagemId, UsuarioId).</summary>
 public class Ciencia
 {
     public Guid PostagemId { get; set; }

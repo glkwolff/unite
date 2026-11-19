@@ -10,17 +10,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Controllers;
 
-/// <summary>
-/// Conversa privada e canal da equipe. Chat nao segue hierarquia: a unica trava e
-/// participar da sala.
-/// </summary>
 [Authorize]
 [ApiController]
 [Route("api/salas")]
 public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext<ChatHub> hub)
     : ControllerBase
 {
-    /// <summary>Minhas conversas, a mais recente primeiro.</summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SalaResumoDto>>> Listar()
     {
@@ -32,7 +27,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
             .Include(s => s.Participantes).ThenInclude(p => p.Usuario).ThenInclude(u => u!.Cargo)
             .ToListAsync();
 
-        // Sem equipe nao ha canal para listar.
         var canais = minhaEquipe is Guid equipeId
             ? await db.Salas
                 .Where(s => s.Tipo == TipoSala.Grupo && s.EquipeId == equipeId)
@@ -51,7 +45,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(resumos.OrderByDescending(r => r!.UltimaEm ?? DateTime.MinValue));
     }
 
-    /// <summary>Abre a conversa com alguem; se ja existe, devolve a mesma.</summary>
     [HttpPost("privada")]
     public async Task<ActionResult<SalaResumoDto>> AbrirPrivada(AbrirPrivadaDto dto)
     {
@@ -91,7 +84,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(SalaResumoDto.Privada(sala, meuId, ultimas.GetValueOrDefault(sala.Id)));
     }
 
-    /// <summary>Abre o canal da equipe de quem chama (criado no primeiro uso); se ja existe, devolve o mesmo.</summary>
     [HttpPost("equipe")]
     public async Task<ActionResult<SalaResumoDto>> AbrirCanalDaEquipe()
     {
@@ -117,7 +109,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(SalaResumoDto.Canal(sala, ultimas.GetValueOrDefault(sala.Id)));
     }
 
-    /// <summary>Historico paginado: sem antesDe, o fim da conversa; com ele, o pedaco anterior.</summary>
     [HttpGet("{id:guid}/mensagens")]
     public async Task<ActionResult<PaginaMensagensDto>> Mensagens(
         Guid id, int limite = 50, DateTimeOffset? antesDe = null)
@@ -134,7 +125,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
             consulta = consulta.Where(m => m.EnviadaEm < limiteUtc);
         }
 
-        // Busca um a mais so para saber se existe pagina anterior.
         var mensagens = await consulta
             .Include(m => m.Autor)
             .OrderByDescending(m => m.EnviadaEm)
@@ -146,7 +136,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(new PaginaMensagensDto(pagina, temMais));
     }
 
-    /// <summary>Grava a mensagem e avisa os participantes pelo hub (o autor tambem recebe).</summary>
     [HttpPost("{id:guid}/mensagens")]
     public async Task<ActionResult<MensagemDto>> Enviar(Guid id, EnviarMensagemDto dto)
     {
@@ -165,8 +154,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         await db.Entry(mensagem).Reference(m => m.Autor).LoadAsync();
         var mapeada = MensagemDto.De(mensagem);
 
-        // ToString() no C#, nao no SQL: o SQLite devolveria o GUID em maiusculas
-        // e o Clients.Users compara com o "sub" do token, que e minusculo.
         await hub.Clients
             .Users(participantes.Select(u => u.ToString()).ToList())
             .SendAsync("MensagemRecebida", mapeada);
@@ -174,12 +161,8 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
         return Ok(mapeada);
     }
 
-    // ---- apoio
-
     private Guid MeuId => permissoes.IdLogado ?? Guid.Empty;
 
-    /// <summary>Quem participa: na privada, a lista gravada; no canal, quem esta na equipe agora.
-    /// A mesma lista autoriza e escolhe quem recebe pelo hub.</summary>
     private async Task<List<Guid>> ParticipantesAsync(Sala sala)
     {
         if (sala.Tipo == TipoSala.Privada)
@@ -190,7 +173,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
                 .ToListAsync();
         }
 
-        // Canal: participante e quem esta na equipe agora.
         if (sala.EquipeId is not Guid equipeId) return [];
 
         return await db.Users
@@ -199,7 +181,6 @@ public class SalasController(AppDbContext db, Permissoes permissoes, IHubContext
             .ToListAsync();
     }
 
-    /// <summary>Ultima mensagem de cada sala, numa consulta so.</summary>
     private async Task<Dictionary<Guid, Mensagem>> UltimasMensagensAsync(List<Guid> salaIds)
     {
         var ultimas = await db.Salas

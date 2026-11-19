@@ -6,7 +6,6 @@ using ChatApi.Tests.Apoio;
 
 namespace ChatApi.Tests;
 
-/// <summary>Cadastro, login, JWT e a verificacao em duas etapas.</summary>
 public class AutenticacaoTestes(Ambiente ambiente) : IClassFixture<Ambiente>
 {
     [Fact]
@@ -43,8 +42,6 @@ public class AutenticacaoTestes(Ambiente ambiente) : IClassFixture<Ambiente>
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, semToken.StatusCode);
     }
-
-    // ---- 2fa
 
     [Fact]
     public async Task Gerente_sem_2fa_recebe_o_qr_code_no_login_e_entra_com_o_codigo()

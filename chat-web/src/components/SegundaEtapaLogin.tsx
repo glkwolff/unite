@@ -5,13 +5,11 @@ import { CodigoAuthenticator } from './CodigoAuthenticator'
 
 interface Props {
   etapa: SegundaEtapa
-  /** O login e refeito com a mesma senha, agora junto com o codigo. */
   email: string
   senha: string
   aoVoltar: () => void
 }
 
-/** Cartao que substitui o formulario de login depois que a senha confere. */
 export function SegundaEtapaLogin({ etapa, email, senha, aoVoltar }: Props) {
   const { entrar } = useAuth()
   const navegar = useNavigate()

@@ -5,7 +5,6 @@ interface Props extends InputHTMLAttributes<HTMLInputElement> {
   ajuda?: string
 }
 
-/** Campo de formulario com rotulo, usado nas telas de login e cadastro. */
 export function Campo({ rotulo, ajuda, ...resto }: Props) {
   return (
     <label className="mb-4 block">

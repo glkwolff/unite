@@ -8,7 +8,6 @@ namespace ChatApi.Tests;
 
 public class PerfilTestes(Ambiente ambiente) : IClassFixture<Ambiente>
 {
-    // Menor PNG valido (1x1). A API confere extensao e tamanho, nao o conteudo.
     private static readonly byte[] Png = Convert.FromBase64String(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
 

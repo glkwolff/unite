@@ -3,8 +3,6 @@ using ChatApi.Models;
 
 namespace ChatApi.Dtos;
 
-// ---- cargos
-
 public class CargoEntradaDto
 {
     [Required(ErrorMessage = "Informe o nome do cargo.")]
@@ -19,15 +17,12 @@ public record CargoDto(Guid Id, string Nome, NivelHierarquico Nivel, int TotalUs
     public static CargoDto De(Cargo c, int totalUsuarios) => new(c.Id, c.Nome, c.Nivel, totalUsuarios);
 }
 
-// ---- equipes
-
 public class EquipeEntradaDto
 {
     [Required(ErrorMessage = "Informe o nome da equipe.")]
     [MaxLength(80)]
     public string Nome { get; set; } = string.Empty;
 
-    /// <summary>Opcional.</summary>
     public Guid? SupervisorId { get; set; }
 }
 
@@ -37,13 +32,11 @@ public class AdicionarMembroDto
     public Guid UsuarioId { get; set; }
 }
 
-/// <summary>Resumo de uma pessoa em listas e na arvore (sem e-mail). Exige Cargo carregado.</summary>
 public record MembroResumoDto(Guid Id, string NomeCompleto, string? FotoUrl, string? Cargo, NivelHierarquico? Nivel)
 {
     public static MembroResumoDto De(Usuario u) => new(u.Id, u.NomeCompleto, u.FotoUrl, u.Cargo?.Nome, u.Cargo?.Nivel);
 }
 
-/// <summary>Pessoa na tela de administracao: o resumo mais os ids de cargo e equipe. Exige Cargo e Equipe carregados.</summary>
 public record PessoaDto(
     Guid Id,
     string NomeCompleto,
@@ -60,11 +53,9 @@ public record PessoaDto(
 
 public class AtribuirCargoDto
 {
-    /// <summary>Nulo tira o cargo da pessoa.</summary>
     public Guid? CargoId { get; set; }
 }
 
-/// <summary>Exige Supervisor.Cargo e Membros.Cargo carregados.</summary>
 public record EquipeDto(
     Guid Id,
     string Nome,
@@ -78,9 +69,6 @@ public record EquipeDto(
         e.Membros.Select(MembroResumoDto.De));
 }
 
-// ---- arvore (organograma)
-
-/// <summary>Organograma: diretoria e gerencia no topo, as equipes, e quem esta sem equipe.</summary>
 public record ArvoreOrganizacionalDto(
     IEnumerable<MembroResumoDto> Lideranca,
     IEnumerable<EquipeDto> Equipes,

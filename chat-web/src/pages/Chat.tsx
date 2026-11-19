@@ -19,7 +19,6 @@ import { iniciais } from "../lib/iniciais";
 
 const SEM_TEMPO_REAL = "Sem conexao em tempo real. Recarregue a pagina.";
 
-// Mensagens por pagina do historico.
 const PAGINA = 50;
 
 export function Chat() {
@@ -31,24 +30,13 @@ export function Chat() {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  // A conexao tem vida propria: cai e volta sozinha, sem ninguem clicar.
-  // Por isso o aviso dela nao mora em `erro`, que abrir() e enviar() limpam.
   const [avisoConexao, setAvisoConexao] = useState<string | null>(null);
 
   const [temMais, setTemMais] = useState(false);
   const [carregandoAntigas, setCarregandoAntigas] = useState(false);
-  // A trava de "ja estou buscando" e uma ref, nao um estado: o onScroll dispara
-  // dezenas de vezes antes do proximo render, e nessas dezenas o estado ainda
-  // estaria no valor velho — a mesma pagina seria pedida varias vezes.
   const buscandoAntigas = useRef(false);
-  // Quem altera `mensagens` diz junto para onde o historico deve rolar. As duas
-  // alteracoes querem coisas opostas: mensagem nova entra no fim e puxa a
-  // leitura para baixo; pagina antiga entra no topo e deve deixar a leitura
-  // parada. Deixar o Historico adivinhar isso comparando ids viraria charada.
   const [modoScroll, setModoScroll] = useState<"fim" | "manter">("fim");
 
-  // O handler do hub vive fora do ciclo de render (a conexao e aberta uma vez
-  // so), entao ele nao enxergaria o estado atual: a ref resolve isso.
   const salaAbertaRef = useRef<SalaResumo | null>(null);
   useEffect(() => {
     salaAbertaRef.current = salaAberta;
@@ -70,10 +58,6 @@ export function Chat() {
   }, []);
 
   useEffect(() => {
-    // O StrictMode monta o efeito duas vezes em dev: o cleanup do primeiro
-    // monte para a conexao no meio da negociacao e o start() rejeita. Esse
-    // start() fomos nos que abortamos, nao e falha de rede — a flag separa os
-    // dois casos para o aviso nao nascer de um erro que provocamos.
     let cancelado = false;
 
     const conexao = conectarChat((mensagem) => {
@@ -81,7 +65,6 @@ export function Chat() {
         setModoScroll("fim");
         setMensagens((atuais) => [...atuais, mensagem]);
       }
-      // O preview e a ordem da lista lateral valem para qualquer sala.
       setSalas((atuais) =>
         atuais.map((s) =>
           s.id === mensagem.salaId
@@ -91,9 +74,6 @@ export function Chat() {
       );
     });
 
-    // withAutomaticReconnect so cobre queda depois de uma conexao estabelecida,
-    // e nesse caso ele mesmo resolve: o aviso diz para esperar, nao para
-    // recarregar. Recarregar a pagina e saida apenas quando a conexao desiste.
     conexao.onreconnecting(() => setAvisoConexao("Conexao caiu. Reconectando…"));
     conexao.onreconnected(() => setAvisoConexao(null));
     conexao.onclose(() => {
@@ -138,9 +118,6 @@ export function Chat() {
     buscandoAntigas.current = true;
     setCarregandoAntigas(true);
     try {
-      // O cursor vai como o texto EXATO que o servidor mandou em enviadaEm.
-      // Passar por new Date(...).toISOString() acrescentaria o fuso e deslocaria
-      // o cursor — o front pularia ou repetiria horas de conversa.
       const cursor = encodeURIComponent(mensagens[0].enviadaEm);
       const antigas = await api.get<PaginaMensagens>(
         `/api/salas/${salaAberta.id}/mensagens?limite=${PAGINA}&antesDe=${cursor}`,
@@ -149,8 +126,6 @@ export function Chat() {
       setTemMais(antigas.temMais);
       setModoScroll("manter");
       setMensagens((atuais) => {
-        // Guarda contra o mesmo pedaco entrar duas vezes, se dois disparos de
-        // rolagem se cruzarem. O id e o unico identificador confiavel aqui.
         const jaTenho = new Set(atuais.map((m) => m.id));
         return [...antigas.itens.filter((m) => !jaTenho.has(m.id)), ...atuais];
       });
@@ -168,7 +143,6 @@ export function Chat() {
       const sala = await api.post<SalaResumo>("/api/salas/privada", {
         usuarioId: pessoa.id,
       });
-      // Conversa que ja existia nao pode entrar duas vezes na lista.
       setSalas((atuais) =>
         atuais.some((s) => s.id === sala.id) ? atuais : [sala, ...atuais],
       );
@@ -180,8 +154,6 @@ export function Chat() {
 
   async function abrirCanalDaEquipe(canal: SalaResumo | null) {
     setErro(null);
-    // O canal nasce no primeiro clique. Se ja esta na lista, abre direto; senao
-    // o POST cria — ou devolve o que outro membro da equipe ja criou.
     if (canal) {
       await abrir(canal);
       return;
@@ -202,8 +174,6 @@ export function Chat() {
     setEnviando(true);
     setErro(null);
     try {
-      // A mensagem aparece pelo evento do hub, que o proprio autor recebe —
-      // nada de inserir na lista aqui, senao ela apareceria duplicada.
       await api.post<Mensagem>(`/api/salas/${salaAberta.id}/mensagens`, { texto });
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Nao foi possivel enviar.");
@@ -216,8 +186,6 @@ export function Chat() {
     return <p className="text-sm text-slate-500">Carregando…</p>;
   }
 
-  // "Conversas" continua sendo so privadas; o canal fica em secao propria, de
-  // posicao fixa, em vez de misturado entre as conversas.
   const privadas = salas.filter((s) => s.tipo === "Privada");
   const canal = salas.find((s) => s.tipo === "Grupo") ?? null;
 
@@ -297,7 +265,6 @@ export function Chat() {
               modoScroll={modoScroll}
               temMais={temMais}
               carregandoAntigas={carregandoAntigas}
-              // Em grupo o balao sozinho nao diz quem falou.
               mostrarAutor={salaAberta.tipo === "Grupo"}
               aoChegarNoTopo={carregarAntigas}
             />
@@ -313,12 +280,9 @@ export function Chat() {
   );
 }
 
-// ------------------------------------------------------------ lista lateral
-
 interface ItemLateral {
   chave: string;
   titulo: string;
-  // O canal nao tem foto: cai nas iniciais do nome da equipe.
   fotoUrl: string | null;
   detalhe: string | null;
   ativo: boolean;
@@ -368,8 +332,6 @@ function ListaLateral({
   );
 }
 
-// Recebe nome e foto soltos, e nao uma MembroResumo, porque o canal de equipe
-// nao tem pessoa nenhuma: ali a inicial sai do nome da equipe.
 function Avatar({ nome, fotoUrl }: { nome: string; fotoUrl: string | null }) {
   return fotoUrl ? (
     <img
@@ -383,8 +345,6 @@ function Avatar({ nome, fotoUrl }: { nome: string; fotoUrl: string | null }) {
     </span>
   );
 }
-
-// ---------------------------------------------------------------- historico
 
 function Historico({
   mensagens,
@@ -406,16 +366,11 @@ function Historico({
   const area = useRef<HTMLDivElement>(null);
   const alturaAnterior = useRef(0);
 
-  // useLayoutEffect, e nao useEffect: o ajuste tem que acontecer depois de o DOM
-  // crescer e ANTES de o navegador pintar. Com useEffect a pessoa ve o salto e
-  // so depois a correcao.
   useLayoutEffect(() => {
     const el = area.current;
     if (!el) return;
 
     if (modoScroll === "manter") {
-      // O conteudo cresceu para cima: devolver exatamente o tanto que cresceu
-      // deixa a mensagem que estava sendo lida parada na mesma altura da tela.
       el.scrollTop = el.scrollHeight - alturaAnterior.current;
     } else {
       el.scrollTop = el.scrollHeight;
@@ -425,8 +380,6 @@ function Historico({
   }, [mensagens, modoScroll]);
 
   function aoRolar() {
-    // Folga de 60px porque o navegador raramente entrega scrollTop exatamente
-    // zero: com "=== 0" a paginacao quase nunca disparava.
     if (area.current && area.current.scrollTop < 60) aoChegarNoTopo();
   }
 
@@ -472,8 +425,6 @@ function Historico({
   );
 }
 
-// -------------------------------------------------------------------- envio
-
 function CampoEnvio({
   enviando,
   aoEnviar,
@@ -487,8 +438,6 @@ function CampoEnvio({
     e.preventDefault();
     const limpo = texto.trim();
     if (!limpo || enviando) return;
-    // Limpa antes da resposta: o campo travado ate o servidor responder
-    // atrapalha quem digita rapido.
     setTexto("");
     await aoEnviar(limpo);
   }

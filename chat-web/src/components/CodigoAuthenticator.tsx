@@ -4,13 +4,10 @@ import type { ChaveAuthenticator } from '../api/client'
 import { Campo } from './Campo'
 
 interface Props {
-  /** Preenchida quando o 2FA esta sendo cadastrado: mostra o QR code. */
   chave: ChaveAuthenticator | null
-  /** Manda o codigo para a API; se der erro, a mensagem aparece aqui. */
   aoEnviar: (codigo: string) => Promise<void>
 }
 
-/** Pede o codigo de 6 digitos do Google Authenticator; antes, o QR code se for o cadastro. */
 export function CodigoAuthenticator({ chave, aoEnviar }: Props) {
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [codigo, setCodigo] = useState('')

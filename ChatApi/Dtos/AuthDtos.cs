@@ -28,7 +28,6 @@ public class LoginDto
     [Required(ErrorMessage = "Informe a senha.")]
     public string Senha { get; set; } = string.Empty;
 
-    /// <summary>Codigo do Authenticator, mandado so na segunda tentativa.</summary>
     public string? Codigo { get; set; }
 }
 
@@ -43,7 +42,6 @@ public record UsuarioDto(
     bool DoisFatoresAtivo,
     bool DoisFatoresObrigatorio)
 {
-    /// <summary>Exige <c>Cargo</c> e <c>Equipe</c> carregados.</summary>
     public static UsuarioDto De(Usuario u) => new(
         u.Id,
         u.Email ?? string.Empty,
@@ -58,7 +56,6 @@ public record UsuarioDto(
 
 public record AuthRespostaDto(string Token, DateTime ExpiraEm, UsuarioDto Usuario);
 
-/// <summary>Senha certa, falta o codigo. Etapa "codigo" ou "configurar" (vem com a chave do QR code).</summary>
 public record SegundaEtapaDto(string Etapa, string? Chave, string? Uri);
 
 public record ChaveAuthenticatorDto(string Chave, string Uri);

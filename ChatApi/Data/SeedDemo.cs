@@ -4,20 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApi.Data;
 
-/// <summary>
-/// Empresa ficticia para a apresentacao: organograma, equipes, feed com "Ciente" e conversas.
-/// So roda com <c>dotnet run -- --seed-demo</c> (base sem usuarios) ou <c>--reset-demo</c>
-/// (apaga a base antes). O startup normal e os testes nao passam por aqui.
-///
-/// Diretor e gerentes ficam sem o 2FA configurado de proposito: o primeiro login mostra o
-/// QR code, que e justamente o que se quer demonstrar.
-/// </summary>
 public static class SeedDemo
 {
     public const string Senha = "unite123";
     private const string Dominio = "unite.demo";
 
-    // Cargos alem dos 4 padrao, para o organograma nao ficar so com "Funcionario".
     private static readonly (string Nome, NivelHierarquico Nivel)[] CargosExtras =
     [
         ("Executivo de Vendas", NivelHierarquico.Funcionario),
@@ -49,11 +40,9 @@ public static class SeedDemo
         new("thiago.moreira", "Thiago Moreira", "Desenvolvedor", "Desenvolvimento"),
         new("vanessa.cardoso", "Vanessa Cardoso", "Desenvolvedor", "Desenvolvimento"),
 
-        // Recem-contratado sem cargo nem equipe: para mostrar a atribuicao ao vivo.
         new("lucas.fernandes", "Lucas Fernandes", "")
     ];
 
-    /// <summary>Supervisor de cada equipe (tambem e membro, senao fica fora do canal).</summary>
     private static readonly Dictionary<string, string> Equipes = new()
     {
         ["Vendas"] = "bruno.carvalho",
@@ -99,7 +88,6 @@ public static class SeedDemo
             true, TimeSpan.FromHours(5))
     ];
 
-    /// <summary>Conta "de apresentacao" do funcionario: os avisos recentes ficam para ela clicar "Ciente".</summary>
     private const string ContaApresentacao = "camila.rocha";
 
     private record Fala(string Autor, string Texto);
@@ -169,7 +157,6 @@ public static class SeedDemo
         ])
     ];
 
-    /// <summary>Semeia a empresa de demonstracao. Devolve false (sem tocar em nada) se ja existem usuarios.</summary>
     public static async Task<bool> ExecutarAsync(IServiceProvider servicos)
     {
         var db = servicos.GetRequiredService<AppDbContext>();
@@ -184,9 +171,8 @@ public static class SeedDemo
 
         await SeedCargos.GarantirAsync(db);
         var agora = DateTime.UtcNow;
-        var rng = new Random(2026); // fixo: toda demo sai igual
+        var rng = new Random(2026);
 
-        // ---- cargos
         foreach (var (nome, nivel) in CargosExtras)
         {
             if (!await db.Cargos.AnyAsync(c => c.Nome == nome))
@@ -195,12 +181,10 @@ public static class SeedDemo
         await db.SaveChangesAsync();
         var cargos = await db.Cargos.ToDictionaryAsync(c => c.Nome);
 
-        // ---- equipes (supervisor entra depois, quando a pessoa existir)
         var equipes = Equipes.Keys.ToDictionary(n => n, n => new Equipe { Nome = n });
         db.Equipes.AddRange(equipes.Values);
         await db.SaveChangesAsync();
 
-        // ---- pessoas
         var pessoas = new Dictionary<string, Usuario>();
         foreach (var p in Pessoas)
         {
@@ -226,7 +210,6 @@ public static class SeedDemo
             equipes[nome].SupervisorId = pessoas[supervisor].Id;
         await db.SaveChangesAsync();
 
-        // ---- feed e "Ciente"
         foreach (var a in Avisos)
         {
             var publicadaEm = agora - a.Ha;
@@ -239,7 +222,6 @@ public static class SeedDemo
                 PublicadaEm = publicadaEm
             };
 
-            // Quanto mais antigo, mais gente ja leu (de ~20% no mesmo dia a ~95% depois de 2 semanas).
             var chance = Math.Min(0.95, 0.2 + a.Ha.TotalDays * 0.06);
             var horasDesde = Math.Max(1, (agora - publicadaEm).TotalHours);
 
@@ -258,7 +240,6 @@ public static class SeedDemo
             db.Postagens.Add(postagem);
         }
 
-        // ---- canais das equipes (conversa de ontem para hoje)
         foreach (var (nome, falas) in Canais)
         {
             var sala = new Sala { Tipo = TipoSala.Grupo, EquipeId = equipes[nome].Id };
@@ -266,7 +247,6 @@ public static class SeedDemo
             db.Salas.Add(sala);
         }
 
-        // ---- conversas privadas
         var inicio = agora.AddHours(-30);
         foreach (var (a, b, falas) in Privadas)
         {
@@ -296,7 +276,6 @@ public static class SeedDemo
         return true;
     }
 
-    /// <summary>Mensagens em sequencia a partir de <paramref name="inicio"/>, com 1 a 25 min entre elas.</summary>
     private static void AdicionarFalas(
         Sala sala, Fala[] falas, Dictionary<string, Usuario> pessoas, DateTime inicio, Random rng)
     {

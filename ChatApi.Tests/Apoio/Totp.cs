@@ -2,10 +2,6 @@ using System.Security.Cryptography;
 
 namespace ChatApi.Tests.Apoio;
 
-/// <summary>
-/// Faz o papel do Google Authenticator: gera o codigo de 6 digitos (RFC 6238, SHA-1, 30 s)
-/// a partir da chave Base32 que a API devolve no QR code.
-/// </summary>
 public static class Totp
 {
     private const string Alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -27,7 +23,6 @@ public static class Totp
         return (binario % 1_000_000).ToString("D6");
     }
 
-    /// <summary>Um codigo que com certeza nao bate com o atual.</summary>
     public static string CodigoErrado(string chaveBase32)
     {
         var certo = int.Parse(Codigo(chaveBase32));

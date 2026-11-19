@@ -90,7 +90,6 @@ export function Pessoas() {
                   ))}
                 </select>
               ) : (
-                /* Um gerente nao mexe em diretor nem em outro gerente. */
                 <span
                   className="text-sm text-slate-500"
                   title="Voce nao tem permissao para mudar este cargo"
